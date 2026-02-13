@@ -35,6 +35,8 @@ interface Client {
   telefono: string | null
   estado: string
   notas: string | null
+  fecha_nacimiento: string | null
+  genero: string | null
 }
 
 export function ClientFormDialog({
@@ -76,7 +78,7 @@ export function ClientFormDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">
             {isEditing ? 'Editar cliente' : 'Nuevo cliente'}
@@ -126,6 +128,29 @@ export function ClientFormDialog({
                 defaultValue={client?.telefono ?? ''}
                 placeholder="+56 9 1234 5678"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="birth_date">Fecha de nacimiento</Label>
+              <Input
+                id="birth_date"
+                name="birth_date"
+                type="date"
+                defaultValue={client?.fecha_nacimiento ?? ''}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="gender">Género</Label>
+              <Select name="gender" defaultValue={client?.genero ?? ''}>
+                <SelectTrigger id="gender">
+                  <SelectValue placeholder="Selecciona género" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="masculino">Masculino</SelectItem>
+                  <SelectItem value="femenino">Femenino</SelectItem>
+                  <SelectItem value="otro">Otro</SelectItem>
+                  <SelectItem value="prefiere_no_decir">Prefiere no decir</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {isEditing && (
               <div className="grid gap-2">

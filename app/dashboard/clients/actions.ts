@@ -11,14 +11,19 @@ export async function createClientAction(formData: FormData) {
 
   if (!user) throw new Error('No autenticado')
 
+  const birthDate = (formData.get('birth_date') as string) || null
+  const genero = (formData.get('gender') as string) || null
+
   const { error } = await supabase.from('clientes').insert({
-     usuario_id: user.id,
-     nombre_completo: formData.get('full_name') as string,
-     rut: (formData.get('rut') as string) || null,
-     correo: (formData.get('email') as string) || null,
-     telefono: (formData.get('phone') as string) || null,
-     notas: (formData.get('notes') as string) || null,
-     estado: 'nuevo',
+    usuario_id: user.id,
+    nombre_completo: formData.get('full_name') as string,
+    rut: (formData.get('rut') as string) || null,
+    correo: (formData.get('email') as string) || null,
+    telefono: (formData.get('phone') as string) || null,
+    notas: (formData.get('notes') as string) || null,
+    fecha_nacimiento: birthDate,
+    genero,
+    estado: 'nuevo',
   })
 
   if (error) throw new Error(error.message)
@@ -34,6 +39,8 @@ export async function updateClientAction(formData: FormData) {
   if (!user) throw new Error('No autenticado')
 
   const id = formData.get('id') as string
+  const birthDate = (formData.get('birth_date') as string) || null
+  const genero = (formData.get('gender') as string) || null
   const { error } = await supabase
     .from('clientes')
     .update({
@@ -42,6 +49,8 @@ export async function updateClientAction(formData: FormData) {
       correo: (formData.get('email') as string) || null,
       telefono: (formData.get('phone') as string) || null,
       notas: (formData.get('notes') as string) || null,
+      fecha_nacimiento: birthDate,
+      genero,
       estado: formData.get('status') as string,
       actualizado_en: new Date().toISOString(),
     })
