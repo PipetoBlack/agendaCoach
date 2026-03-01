@@ -73,8 +73,8 @@ export function ClientFormDialog({
       <DialogTrigger asChild>
         {trigger || (
           <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Agregar cliente
+            <Plus className="mr-100 h-4 w-4" />
+            Agregar Cliente
           </Button>
         )}
       </DialogTrigger>
@@ -152,21 +152,6 @@ export function ClientFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            {isEditing && (
-              <div className="grid gap-2">
-                <Label htmlFor="status">Estado</Label>
-                <Select name="status" defaultValue={client?.estado ?? 'nuevo'}>
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="nuevo">Nuevo</SelectItem>
-                    <SelectItem value="activo">Activo</SelectItem>
-                    <SelectItem value="inactivo">Inactivo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="grid gap-2">
               <Label htmlFor="notes">Notas</Label>
               <Textarea

@@ -16,7 +16,7 @@ export default async function ClientsPage() {
 
   const { data: paquetes } = await supabase
     .from('paquetes_sesiones')
-    .select('id, cliente_id, sesiones_totales, sesiones_usadas, estado, fecha_inicio')
+    .select('id, cliente_id, sesiones_totales, sesiones_usadas, estado, fecha_inicio, fecha_expiracion')
     .eq('usuario_id', user!.id)
 
   const { data: sesionesProgramadas } = await supabase

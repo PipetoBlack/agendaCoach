@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,8 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { PackageFormDialog } from '@/components/package-form-dialog'
 import { EditClientButton } from '@/components/client-form-dialog'
 import { DeleteClientButton } from '@/components/delete-client-button'
-import { burnSessionAction } from '@/app/dashboard/sessions/actions'
-import { deletePackageAction } from '@/app/dashboard/sessions/actions'
+import { burnSessionAction, deletePackageAction, updatePackageExpiryAction } from '@/app/dashboard/sessions/actions'
 import {
   Mail,
   Phone,
@@ -31,11 +30,22 @@ import { toast } from 'sonner'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 type Cliente = {
   id: string
   nombre_completo: string
@@ -56,6 +66,7 @@ type Paquete = {
   sesiones_usadas: number
   estado: string
   fecha_inicio?: string | null
+  fecha_expiracion?: string | null
 }
 
 type SesionProgramada = {
@@ -84,6 +95,9 @@ type ClienteConStats = Cliente & {
   sesionesUsadas: number
   sesionesRestantes: number
   estadoCalculado: 'activo' | 'inactivo'
+  esNuevo: boolean
+  fechaExpiracionActiva: string | null
+  paqueteExpirado: boolean
 }
 
 function comparePackages(a: Paquete, b: Paquete) {
@@ -129,6 +143,13 @@ function buildStats(clientes: Cliente[], paquetes: Paquete[]): ClienteConStats[]
     const sesionesTotales = actual?.sesiones_totales || 0
     const sesionesUsadas = actual?.sesiones_usadas || 0
     const estadoCalculado = actual ? 'activo' : 'inactivo'
+    const creadoEn = (cliente as any).created_at ? new Date((cliente as any).created_at) : null
+    const hoy = new Date()
+    const diffMs = creadoEn ? hoy.getTime() - creadoEn.getTime() : Number.POSITIVE_INFINITY
+    const diffDias = diffMs / (1000 * 60 * 60 * 24)
+    const esNuevo = Number.isFinite(diffDias) ? diffDias <= 7 : cliente.estado === 'nuevo'
+    const expiraEn = actual?.fecha_expiracion ? new Date(actual.fecha_expiracion) : null
+    const expirada = expiraEn ? expiraEn.getTime() < hoy.getTime() : false
     return {
       ...cliente,
       paquetes: pkgs.length,
@@ -138,6 +159,9 @@ function buildStats(clientes: Cliente[], paquetes: Paquete[]): ClienteConStats[]
       sesionesUsadas,
       sesionesRestantes: Math.max(sesionesTotales - sesionesUsadas, 0),
       estadoCalculado,
+      esNuevo,
+      fechaExpiracionActiva: actual?.fecha_expiracion || null,
+      paqueteExpirado: expirada,
     }
   })
 }
@@ -165,7 +189,7 @@ export function ClientsBoard({
         filtroEstado === 'todos'
           ? true
           : filtroEstado === 'nuevo'
-            ? c.estado === 'nuevo'
+            ? c.esNuevo
             : c.estadoCalculado === filtroEstado
       const coincideTexto =
         term.length === 0 ||
@@ -189,6 +213,7 @@ export function ClientsBoard({
             />
           </div>
         </div>
+
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
           {filtros.map((f) => (
@@ -227,21 +252,10 @@ export function ClientsBoard({
                       </CardTitle>
                       <div className="flex flex-wrap items-center gap-2">
                         {estadoActivoInfo && <Badge variant={estadoActivoInfo.variant}>{estadoActivoInfo.label}</Badge>}
-                        {cliente.estado === 'nuevo' && <Badge variant={estadoInfo.variant}>{estadoInfo.label}</Badge>}
-                        {cliente.paquetesActivos > 0 && (
-                          <Badge variant="outline" className="gap-1">
-                            <Package className="h-3 w-3" />
-                            {cliente.paquetesActivos} paquete{cliente.paquetesActivos !== 1 ? 's' : ''}
-                          </Badge>
-                        )}
+                        {cliente.esNuevo && <Badge variant={estadoStyles.nuevo.variant}>{estadoStyles.nuevo.label}</Badge>}
                         {cliente.paquetesEnCola > 0 && (
                           <Badge variant="secondary" className="gap-1">
                             {cliente.paquetesEnCola} en cola
-                          </Badge>
-                        )}
-                        {cliente.paquetes > cliente.paquetesActivos && (
-                          <Badge variant="outline" className="gap-1">
-                            {cliente.paquetes} total
                           </Badge>
                         )}
                       </div>
@@ -281,6 +295,14 @@ export function ClientsBoard({
                         <p className="text-xs text-muted-foreground">
                           {cliente.sesionesRestantes} sesiones restantes
                         </p>
+                        {cliente.fechaExpiracionActiva && (
+                          <p
+                            className={`text-xs ${cliente.paqueteExpirado ? 'text-destructive' : 'text-muted-foreground'}`}
+                          >
+                            Término: {new Date(cliente.fechaExpiracionActiva).toLocaleDateString('es-CL')}
+                            {cliente.paqueteExpirado ? ' (vencido)' : ''}
+                          </p>
+                        )}
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">Sin paquete activo. Crea uno para comenzar.</p>
@@ -321,11 +343,26 @@ function ClientDetailDialog({
   const [isBurning, setIsBurning] = useState(false)
   const [deletingPackageId, setDeletingPackageId] = useState<string | null>(null)
   const [showCola, setShowCola] = useState(false)
+  const [showExtendForm, setShowExtendForm] = useState(false)
+  const [extendDate, setExtendDate] = useState('')
+  const [isExtending, setIsExtending] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [showHistorialQuemadas, setShowHistorialQuemadas] = useState(false)
+  const [filtroFechaQuemadas, setFiltroFechaQuemadas] = useState('')
+  const [paginaQuemadas, setPaginaQuemadas] = useState(1)
+  const [confirmBurnOpen, setConfirmBurnOpen] = useState(false)
+
+  useEffect(() => {
+    setPaginaQuemadas(1)
+  }, [filtroFechaQuemadas, showHistorialQuemadas])
   const paquetesCliente = paquetes.filter((p) => p.cliente_id === cliente.id)
   const { actual: paqueteActivo, cola: paquetesEnCola } = selectCurrentActivePackage(paquetesCliente)
   const progreso = paqueteActivo && paqueteActivo.sesiones_totales > 0
     ? Math.min(Math.round((paqueteActivo.sesiones_usadas / paqueteActivo.sesiones_totales) * 100), 100)
     : 0
+  const paqueteExpirado = paqueteActivo?.fecha_expiracion
+    ? new Date(paqueteActivo.fecha_expiracion).getTime() < new Date().getTime()
+    : false
   const restantes = paqueteActivo
     ? Math.max(paqueteActivo.sesiones_totales - paqueteActivo.sesiones_usadas, 0)
     : 0
@@ -362,6 +399,32 @@ function ClientDetailDialog({
   )
   const ultimasQuemadas = sesionesQuemadasOrdenadas.slice(0, 3)
 
+  const historialQuemadas = useMemo(() => {
+    const filtradas = filtroFechaQuemadas
+      ? sesionesQuemadasOrdenadas.filter((s) => s.consumida_en.slice(0, 10) === filtroFechaQuemadas)
+      : sesionesQuemadasOrdenadas
+
+    const pageSize = 5
+    const total = filtradas.length
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    const currentPage = Math.min(paginaQuemadas, totalPages)
+    const start = (currentPage - 1) * pageSize
+    const slice = filtradas.slice(start, start + pageSize)
+
+    const grupos: { fechaKey: string; fechaLabel: string; sesiones: SesionConsumida[] }[] = []
+    slice.forEach((s) => {
+      const key = s.consumida_en.slice(0, 10)
+      let grupo = grupos.find((g) => g.fechaKey === key)
+      if (!grupo) {
+        grupo = { fechaKey: key, fechaLabel: new Date(s.consumida_en).toLocaleDateString('es-CL'), sesiones: [] }
+        grupos.push(grupo)
+      }
+      grupo.sesiones.push(s)
+    })
+
+    return { total, grupos, totalPages, currentPage, pageSize }
+  }, [sesionesQuemadasOrdenadas, filtroFechaQuemadas, paginaQuemadas])
+
   const formatDateTime = (iso: string) => {
     const d = new Date(iso)
     return `${d.toLocaleDateString('es-CL')} · ${d.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`
@@ -384,7 +447,33 @@ function ClientDetailDialog({
       .finally(() => setDeletingPackageId(null))
   }
 
+  const openExtendDialog = () => {
+    if (paqueteActivo?.fecha_expiracion) {
+      setExtendDate(paqueteActivo.fecha_expiracion.slice(0, 10))
+    } else {
+      setExtendDate(new Date().toISOString().slice(0, 10))
+    }
+    setShowExtendForm(true)
+  }
+
+  const handleExtend = () => {
+    if (!paqueteActivo) return
+    if (!extendDate) {
+      toast.error('Selecciona una fecha de término')
+      return
+    }
+    setIsExtending(true)
+    updatePackageExpiryAction({ packageId: paqueteActivo.id, expiryDate: extendDate })
+      .then(() => {
+        toast.success('Paquete extendido')
+        setShowExtendForm(false)
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : 'No se pudo extender el paquete'))
+      .finally(() => setIsExtending(false))
+  }
+
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="w-full justify-center">
@@ -481,18 +570,48 @@ function ClientDetailDialog({
                     {paquetesEnCola.length} en cola
                   </Button>
                 )}
-                <Button variant="outline" size="sm" disabled={!paqueteActivo}>
+                <Button variant="outline" size="sm" disabled={!paqueteActivo} onClick={openExtendDialog}>
                   Extender
                 </Button>
                 {paqueteActivo && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeletePackage(paqueteActivo.id)}
-                    disabled={deletingPackageId === paqueteActivo.id}
-                  >
-                    {deletingPackageId === paqueteActivo.id ? 'Eliminando...' : 'Eliminar'}
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={deletingPackageId === paqueteActivo.id}
+                        onClick={() => setDeleteConfirm('')}
+                      >
+                        {deletingPackageId === paqueteActivo.id ? 'Eliminando...' : 'Eliminar'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Eliminar paquete</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Se eliminará este paquete y sus sesiones asociadas. Escribe "Eliminar" para confirmar.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Eliminar"
+                          value={deleteConfirm}
+                          onChange={(e) => setDeleteConfirm(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          disabled={deleteConfirm.toLowerCase() !== 'eliminar' || deletingPackageId === paqueteActivo.id}
+                          onClick={() => handleDeletePackage(paqueteActivo.id)}
+                        >
+                          Confirmar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
             </div>
@@ -507,14 +626,45 @@ function ClientDetailDialog({
                   {paqueteActivo.fecha_inicio && (
                     <div className="text-xs text-muted-foreground">Inicio: {new Date(paqueteActivo.fecha_inicio).toLocaleDateString('es-CL')}</div>
                   )}
+                  {paqueteActivo.fecha_expiracion && (
+                    <div
+                      className={`text-xs ${paqueteExpirado ? 'text-destructive' : 'text-muted-foreground'}`}
+                    >
+                      Término: {new Date(paqueteActivo.fecha_expiracion).toLocaleDateString('es-CL')}
+                      {paqueteExpirado ? ' (vencido)' : ''}
+                    </div>
+                  )}
                   <Progress value={progreso} />
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Flame className="h-3 w-3" /> {restantes} pendientes</span>
                     <span>{progreso}%</span>
                   </div>
-                  <Button variant="destructive" onClick={handleBurnSession} className="w-full" disabled={isBurning}>
-                    {isBurning ? 'Registrando...' : 'Quemar sesión'}
-                  </Button>
+                  <AlertDialog open={confirmBurnOpen} onOpenChange={setConfirmBurnOpen}>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full" disabled={isBurning}>
+                        {isBurning ? 'Registrando...' : 'Quemar sesión'}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Quieres quemar una sesión hoy?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta acción registrará una sesión consumida para este paquete.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isBurning}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => {
+                            setConfirmBurnOpen(false)
+                            handleBurnSession()
+                          }}
+                          disabled={isBurning}
+                        >
+                          Confirmar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
 
                 <div className="grid gap-2 rounded-lg border bg-background p-3">
@@ -579,12 +729,12 @@ function ClientDetailDialog({
             )}
           </div>
 
-          <div className="grid gap-3 rounded-xl border p-4 bg-background">
+          <div className="grid gap-3 rounded-xl border p-4 bg-background sm:mx-0 mx-1">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" /> Sesiones quemadas recientes
               </h3>
-              <Button variant="outline" size="sm" onClick={() => toast.info('Historial completo no implementado aún')}>
+              <Button variant="outline" size="sm" onClick={() => setShowHistorialQuemadas(true)}>
                 Ver historial
               </Button>
             </div>
@@ -608,12 +758,17 @@ function ClientDetailDialog({
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="grid gap-3 rounded-xl border p-4 bg-background sm:mx-0 mx-1">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" /> Historial de paquetes
               </h3>
-              <Button variant="outline" size="sm" onClick={() => setShowHistorialPaquetes((v) => !v)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 leading-none"
+                onClick={() => setShowHistorialPaquetes((v) => !v)}
+              >
                 {showHistorialPaquetes ? 'Ocultar' : 'Mostrar'}
               </Button>
             </div>
@@ -630,6 +785,11 @@ function ClientDetailDialog({
                       {p.fecha_inicio && (
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           Inicio: <strong className="text-foreground">{new Date(p.fecha_inicio).toLocaleDateString('es-CL')}</strong>
+                        </div>
+                      )}
+                      {p.fecha_expiracion && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1">
+                          Finalizó: <strong className="text-foreground">{new Date(p.fecha_expiracion).toLocaleDateString('es-CL')}</strong>
                         </div>
                       )}
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -649,9 +809,115 @@ function ClientDetailDialog({
             ) : null}
           </div>
         </div>
-
-        
       </DialogContent>
     </Dialog>
+
+    <Dialog open={showExtendForm} onOpenChange={setShowExtendForm}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Extender paquete</DialogTitle>
+          <DialogDescription>Actualiza la fecha de término de este paquete de sesiones.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <span className="text-sm font-medium text-foreground">Nueva fecha de término</span>
+            <Input type="date" value={extendDate} onChange={(e) => setExtendDate(e.target.value)} />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowExtendForm(false)} disabled={isExtending}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExtend} disabled={isExtending}>
+              {isExtending ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={showHistorialQuemadas} onOpenChange={setShowHistorialQuemadas}>
+      <DialogContent className="w-full max-w-2xl sm:max-w-2xl max-h-[85vh] overflow-hidden p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle>Historial de sesiones quemadas</DialogTitle>
+          <DialogDescription>
+            Total: {historialQuemadas.total} sesiones
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="text-sm text-muted-foreground">Filtrar por fecha</div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={filtroFechaQuemadas}
+                onChange={(e) => setFiltroFechaQuemadas(e.target.value)}
+                className="w-full sm:w-44"
+              />
+              {filtroFechaQuemadas && (
+                <Button variant="ghost" size="sm" onClick={() => setFiltroFechaQuemadas('')}>
+                  Limpiar
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {historialQuemadas.grupos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hay sesiones quemadas para la fecha seleccionada.</p>
+          ) : (
+            <div className="space-y-4 max-h-[60vh] overflow-auto pr-1 sm:pr-2">
+              {historialQuemadas.grupos.map((grupo) => (
+                <div key={grupo.fechaKey} className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                  <div className="flex items-center justify-between text-sm font-semibold text-foreground">
+                    <span>{grupo.fechaLabel}</span>
+                    <span className="text-xs text-muted-foreground">{grupo.sesiones.length} sesiones</span>
+                  </div>
+                  <div className="space-y-2">
+                    {grupo.sesiones.map((s) => (
+                      <div key={s.id} className="rounded border p-2 bg-background">
+                        <div className="flex items-center justify-between text-sm font-medium">
+                          <span>Sesión quemada</span>
+                          <span className="text-xs text-muted-foreground">{s.origen || 'manual'}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(s.consumida_en).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        {s.notas && <div className="text-xs text-muted-foreground">{s.notas}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {historialQuemadas.total > historialQuemadas.pageSize && (
+            <div className="flex items-center justify-between gap-3 pt-2 text-sm">
+              <div className="text-muted-foreground">
+                Página {historialQuemadas.currentPage} de {historialQuemadas.totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={historialQuemadas.currentPage === 1}
+                  onClick={() => setPaginaQuemadas((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={historialQuemadas.currentPage === historialQuemadas.totalPages}
+                  onClick={() => setPaginaQuemadas((p) => Math.min(historialQuemadas.totalPages, p + 1))}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    </>
   )
 }

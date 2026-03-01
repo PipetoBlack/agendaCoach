@@ -140,6 +140,34 @@ export async function deleteSessionAction(sessionId: string) {
   revalidatePath('/dashboard')
 }
 
+export async function updatePackageExpiryAction({
+  packageId,
+  expiryDate,
+}: {
+  packageId: string
+  expiryDate: string
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('No autenticado')
+  if (!expiryDate) throw new Error('Fecha de expiración requerida')
+
+  const { error } = await supabase
+    .from('paquetes_sesiones')
+    .update({ fecha_expiracion: expiryDate })
+    .eq('id', packageId)
+    .eq('usuario_id', user.id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/clients')
+  revalidatePath('/dashboard/sessions')
+  revalidatePath('/dashboard')
+}
+
 export async function deletePackageAction(packageId: string) {
   const supabase = await createClient()
   const {
