@@ -32,6 +32,97 @@ export async function createSessionAction(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
+export async function createRecurringSessionsAction({
+  clientId,
+  packageId,
+  startDate,
+  sessionTime,
+  days,
+  weeks,
+}: {
+  clientId: string
+  packageId: string | null
+  startDate: string
+  sessionTime: string
+  days: number[]
+  weeks: number
+}) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('No autenticado')
+  if (!clientId) throw new Error('Cliente requerido')
+  if (!packageId) throw new Error('Paquete requerido')
+  if (!startDate || !sessionTime) throw new Error('Fecha y hora requeridas')
+  if (!days || days.length === 0) throw new Error('Selecciona al menos un día')
+
+  const sanitizedWeeks = Math.max(1, Number(weeks) || 1)
+
+  const { data: pkg, error: pkgError } = await supabase
+    .from('paquetes_sesiones')
+    .select('sesiones_totales, sesiones_usadas, estado, fecha_expiracion, cliente_id')
+    .eq('id', packageId)
+    .eq('usuario_id', user.id)
+    .single()
+
+  if (pkgError) throw new Error(pkgError.message)
+  if (!pkg) throw new Error('Paquete no encontrado')
+  if (pkg.cliente_id !== clientId) throw new Error('El paquete no pertenece al cliente seleccionado')
+  if (pkg.estado !== 'activo') throw new Error('El paquete no está activo')
+
+  const remaining = Math.max((pkg.sesiones_totales ?? 0) - (pkg.sesiones_usadas ?? 0), 0)
+  if (remaining <= 0) throw new Error('El paquete no tiene sesiones disponibles')
+
+  const maxCount = remaining
+  const selectedDays = [...days]
+  const start = new Date(`${startDate}T00:00:00`)
+  let limitDate = new Date(start)
+  limitDate.setDate(limitDate.getDate() + sanitizedWeeks * 7)
+
+  if (pkg.fecha_expiracion) {
+    const expiry = new Date(pkg.fecha_expiracion)
+    expiry.setDate(expiry.getDate() + 1) // incluir el día de expiración completo
+    if (expiry < limitDate) {
+      limitDate = expiry
+    }
+    if (start >= expiry) {
+      throw new Error('La fecha de inicio es posterior a la expiración del paquete')
+    }
+  }
+
+  const desiredTotal = Math.max(selectedDays.length * sanitizedWeeks, 0)
+  if (desiredTotal > remaining) {
+    throw new Error('La cantidad solicitada excede las sesiones disponibles del paquete')
+  }
+
+  const occurrences: Date[] = []
+  for (const cursor = new Date(start); cursor < limitDate && occurrences.length < maxCount; cursor.setDate(cursor.getDate() + 1)) {
+    if (selectedDays.includes(cursor.getDay())) {
+      occurrences.push(new Date(cursor))
+    }
+  }
+
+  if (occurrences.length === 0) throw new Error('No se generaron fechas con la configuración actual')
+
+  const rows = occurrences.map((date) => ({
+    usuario_id: user.id,
+    cliente_id: clientId,
+    paquete_id: packageId,
+    fecha_sesion: date.toISOString().slice(0, 10),
+    hora_sesion: sessionTime,
+    estado: 'programada',
+  }))
+
+  const { error } = await supabase.from('sesiones_programadas').insert(rows)
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/sessions')
+  revalidatePath('/dashboard/clients')
+  revalidatePath('/dashboard')
+}
+
 export async function burnSessionAction({ paqueteId, clienteId }: { paqueteId: string; clienteId: string }) {
   const supabase = await createClient()
   const {

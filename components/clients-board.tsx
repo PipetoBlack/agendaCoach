@@ -67,6 +67,7 @@ type Paquete = {
   estado: string
   fecha_inicio?: string | null
   fecha_expiracion?: string | null
+  creado_en?: string | null
 }
 
 type SesionProgramada = {
@@ -101,8 +102,16 @@ type ClienteConStats = Cliente & {
 }
 
 function comparePackages(a: Paquete, b: Paquete) {
-  const fa = a.fecha_inicio ? new Date(a.fecha_inicio).getTime() : 0
-  const fb = b.fecha_inicio ? new Date(b.fecha_inicio).getTime() : 0
+  const fa = a.creado_en
+    ? new Date(a.creado_en).getTime()
+    : a.fecha_inicio
+      ? new Date(a.fecha_inicio).getTime()
+      : 0
+  const fb = b.creado_en
+    ? new Date(b.creado_en).getTime()
+    : b.fecha_inicio
+      ? new Date(b.fecha_inicio).getTime()
+      : 0
   if (fa !== fb) return fa - fb
   return a.id.localeCompare(b.id)
 }
@@ -355,7 +364,29 @@ function ClientDetailDialog({
   useEffect(() => {
     setPaginaQuemadas(1)
   }, [filtroFechaQuemadas, showHistorialQuemadas])
+  const ultimoConsumoPorPaquete = useMemo(() => {
+    const map = new Map<string, number>()
+    sesionesConsumidas.forEach((s) => {
+      if (!s.paquete_id) return
+      const ts = new Date(s.consumida_en).getTime()
+      const prev = map.get(s.paquete_id) ?? 0
+      if (ts > prev) map.set(s.paquete_id, ts)
+    })
+    return map
+  }, [sesionesConsumidas])
+
   const paquetesCliente = paquetes.filter((p) => p.cliente_id === cliente.id)
+  const paquetesHistorial = [...paquetesCliente].sort((a, b) => {
+    const da = ultimoConsumoPorPaquete.get(a.id)
+      ?? (a.fecha_expiracion ? new Date(a.fecha_expiracion).getTime() : undefined)
+      ?? (a.fecha_inicio ? new Date(a.fecha_inicio).getTime() : undefined)
+      ?? (a.creado_en ? new Date(a.creado_en).getTime() : 0)
+    const db = ultimoConsumoPorPaquete.get(b.id)
+      ?? (b.fecha_expiracion ? new Date(b.fecha_expiracion).getTime() : undefined)
+      ?? (b.fecha_inicio ? new Date(b.fecha_inicio).getTime() : undefined)
+      ?? (b.creado_en ? new Date(b.creado_en).getTime() : 0)
+    return db - da
+  })
   const { actual: paqueteActivo, cola: paquetesEnCola } = selectCurrentActivePackage(paquetesCliente)
   const progreso = paqueteActivo && paqueteActivo.sesiones_totales > 0
     ? Math.min(Math.round((paqueteActivo.sesiones_usadas / paqueteActivo.sesiones_totales) * 100), 100)
@@ -391,8 +422,10 @@ function ClientDetailDialog({
     : 'No registrado'
   const observacion = cliente.notas?.trim() ? cliente.notas.trim() : 'Sin observación'
 
-  const agendadas = sesionesProgramadas.filter((s) => s.estado === 'programada').length
-  const agendadasTotal = total || sesionesProgramadas.length
+  const agendadas = paqueteActivo
+    ? sesionesProgramadas.filter((s) => s.estado === 'programada' && s.paquete_id === paqueteActivo.id).length
+    : 0
+  const agendadasTotal = paqueteActivo?.sesiones_totales ?? 0
 
   const sesionesQuemadasOrdenadas = [...sesionesConsumidas].sort(
     (a, b) => new Date(b.consumida_en).getTime() - new Date(a.consumida_en).getTime(),
@@ -772,9 +805,9 @@ function ClientDetailDialog({
                 {showHistorialPaquetes ? 'Ocultar' : 'Mostrar'}
               </Button>
             </div>
-            {showHistorialPaquetes && paquetesCliente.length > 0 ? (
+            {showHistorialPaquetes && paquetesHistorial.length > 0 ? (
               <div className="grid gap-2 max-h-52 overflow-auto pr-1">
-                {paquetesCliente.map((p, idx) => {
+                {paquetesHistorial.map((p, idx) => {
                   const prog = p.sesiones_totales > 0 ? Math.round((p.sesiones_usadas / p.sesiones_totales) * 100) : 0
                   return (
                     <div key={p.id} className="rounded border p-3 text-sm space-y-2 bg-background">

@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ const navItems = [
 export function AppSidebar({ userEmail }: { userEmail?: string }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { setOpenMobile, isMobile } = useSidebar()
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -82,7 +84,12 @@ export function AppSidebar({ userEmail }: { userEmail?: string }) {
                         : pathname.startsWith(item.url)
                     }
                   >
-                    <Link href={item.url}>
+                    <Link
+                      href={item.url}
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false)
+                      }}
+                    >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>

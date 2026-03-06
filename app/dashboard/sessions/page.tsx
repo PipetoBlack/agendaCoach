@@ -1,9 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SessionsTable } from '@/components/sessions-table'
-import { PackagesOverview } from '@/components/packages-overview'
-import { ScheduleSessionDialog } from '@/components/schedule-session-dialog'
-import { PackageFormDialog } from '@/components/package-form-dialog'
+import { SmartSessionPlanner } from '@/components/smart-session-planner'
 
 export default async function SessionsPage() {
   const supabase = await createClient()
@@ -11,33 +7,25 @@ export default async function SessionsPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const [clientsRes, sessionsRes, packagesRes] = await Promise.all([
+  const [clientsRes, packagesRes, scheduledRes] = await Promise.all([
     supabase
       .from('clientes')
       .select('id, nombre_completo')
       .eq('usuario_id', user!.id)
       .order('nombre_completo'),
     supabase
-      .from('sesiones_programadas')
-      .select('id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo)')
-      .eq('usuario_id', user!.id)
-      .order('fecha_sesion', { ascending: false })
-      .order('hora_sesion', { ascending: false }),
-    supabase
       .from('paquetes_sesiones')
-      .select('id, cliente_id, sesiones_totales, sesiones_usadas, fecha_expiracion, estado, clientes(nombre_completo)')
+      .select('id, cliente_id, sesiones_totales, sesiones_usadas, fecha_expiracion, estado, creado_en, fecha_inicio, clientes(nombre_completo)')
       .eq('usuario_id', user!.id)
       .order('creado_en', { ascending: false }),
+    supabase
+      .from('sesiones_programadas')
+      .select('paquete_id')
+      .eq('usuario_id', user!.id)
+      .eq('estado', 'programada'),
   ])
 
   const clients = (clientsRes.data ?? []) as Array<{ id: string; nombre_completo: string }>
-  const sessions = (sessionsRes.data ?? []) as Array<{
-    id: string
-    fecha_sesion: string
-    hora_sesion: string
-    estado: string
-    clientes: { nombre_completo: string }
-  }>
   const packages = (packagesRes.data ?? []) as Array<{
     id: string
     cliente_id: string
@@ -45,36 +33,60 @@ export default async function SessionsPage() {
     sesiones_usadas: number
     fecha_expiracion: string | null
     estado: string
+    creado_en?: string
+    fecha_inicio?: string | null
     clientes: { nombre_completo: string }
   }>
+
+  const scheduledCountByPackage = new Map<string, number>()
+  for (const row of scheduledRes.data ?? []) {
+    if (!row.paquete_id) continue
+    scheduledCountByPackage.set(row.paquete_id, (scheduledCountByPackage.get(row.paquete_id) ?? 0) + 1)
+  }
+
+  const packagesWithScheduled = packages.map((p) => ({
+    ...p,
+    sesiones_agendadas: scheduledCountByPackage.get(p.id) ?? 0,
+  }))
+
+  const packagesPrioritized = [...packagesWithScheduled].sort((a, b) => {
+    const ra = a.sesiones_totales - a.sesiones_usadas - (a.sesiones_agendadas ?? 0)
+    const rb = b.sesiones_totales - b.sesiones_usadas - (b.sesiones_agendadas ?? 0)
+    const hasA = a.estado === 'activo' && ra > 0
+    const hasB = b.estado === 'activo' && rb > 0
+    if (hasA !== hasB) return hasA ? -1 : 1
+    const ta = a.creado_en
+      ? new Date(a.creado_en).getTime()
+      : a.fecha_inicio
+        ? new Date(a.fecha_inicio).getTime()
+        : 0
+    const tb = b.creado_en
+      ? new Date(b.creado_en).getTime()
+      : b.fecha_inicio
+        ? new Date(b.fecha_inicio).getTime()
+        : 0
+    return ta - tb
+  })
+
+  const clientsWithCapacity = clients.filter((c) =>
+    packagesWithScheduled.some((p) => {
+      const remaining = p.sesiones_totales - p.sesiones_usadas - (p.sesiones_agendadas ?? 0)
+      return p.cliente_id === c.id && p.estado === 'activo' && remaining > 0
+    }),
+  )
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-foreground">Sesiones</h1>
-          <p className="text-sm text-muted-foreground">
-            Programa y gestiona tus sesiones de coaching
+          <h1 className="font-heading text-3xl font-bold text-foreground">Planifica tu semana</h1>
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            Organiza las sesiones de tu cliente en segundos: elige días, horarios y duración del plan.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <PackageFormDialog clients={clients} />
-          <ScheduleSessionDialog clients={clients} packages={packages} />
         </div>
       </div>
 
-      <Tabs defaultValue="sessions">
-        <TabsList>
-          <TabsTrigger value="sessions">Todas las sesiones</TabsTrigger>
-          <TabsTrigger value="packages">Paquetes</TabsTrigger>
-        </TabsList>
-        <TabsContent value="sessions" className="mt-4">
-          <SessionsTable sessions={sessions} />
-        </TabsContent>
-        <TabsContent value="packages" className="mt-4">
-          <PackagesOverview packages={packages} />
-        </TabsContent>
-      </Tabs>
+      <SmartSessionPlanner clients={clientsWithCapacity} packages={packagesPrioritized} />
     </div>
   )
 }
