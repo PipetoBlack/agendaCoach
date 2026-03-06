@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +15,7 @@ import {
   Mail,
   Phone,
   Search,
-  Filter,
+  Check, Filter,
   Package,
   User,
   PhoneCall,
@@ -46,7 +46,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-type Cliente = {
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+export type Cliente = {
   id: string
   nombre_completo: string
   rut: string | null
@@ -59,7 +65,7 @@ type Cliente = {
   genero: string | null
 }
 
-type Paquete = {
+export type Paquete = {
   id: string
   cliente_id: string
   sesiones_totales: number
@@ -70,7 +76,7 @@ type Paquete = {
   creado_en?: string | null
 }
 
-type SesionProgramada = {
+export type SesionProgramada = {
   id: string
   cliente_id: string
   paquete_id: string | null
@@ -79,7 +85,7 @@ type SesionProgramada = {
   estado: string
 }
 
-type SesionConsumida = {
+export type SesionConsumida = {
   id: string
   cliente_id: string
   paquete_id: string | null
@@ -88,7 +94,7 @@ type SesionConsumida = {
   origen: string | null
 }
 
-type ClienteConStats = Cliente & {
+export type ClienteConStats = Cliente & {
   paquetes: number
   paquetesActivos: number
   paquetesEnCola: number
@@ -116,7 +122,7 @@ function comparePackages(a: Paquete, b: Paquete) {
   return a.id.localeCompare(b.id)
 }
 
-function selectCurrentActivePackage(pkgs: Paquete[]) {
+export function selectCurrentActivePackage(pkgs: Paquete[]) {
   const activosOrdenados = pkgs
     .filter((p) => p.estado === 'activo')
     .filter((p) => p.sesiones_usadas < p.sesiones_totales)
@@ -136,7 +142,6 @@ const filtros = [
   { valor: 'todos', etiqueta: 'Todos' },
   { valor: 'activo', etiqueta: 'Activos' },
   { valor: 'inactivo', etiqueta: 'Inactivos' },
-  { valor: 'nuevo', etiqueta: 'Nuevos' },
 ]
 
 function buildStats(clientes: Cliente[], paquetes: Paquete[]): ClienteConStats[] {
@@ -197,9 +202,7 @@ export function ClientsBoard({
       const coincideEstado =
         filtroEstado === 'todos'
           ? true
-          : filtroEstado === 'nuevo'
-            ? c.esNuevo
-            : c.estadoCalculado === filtroEstado
+          : c.estadoCalculado === filtroEstado
       const coincideTexto =
         term.length === 0 ||
         c.nombre_completo.toLowerCase().includes(term) ||
@@ -221,20 +224,22 @@ export function ClientsBoard({
               onChange={(e) => setBusqueda(e.target.value)}
             />
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          {filtros.map((f) => (
-            <Button
-              key={f.valor}
-              size="sm"
-              variant={filtroEstado === f.valor ? 'default' : 'outline'}
-              onClick={() => setFiltroEstado(f.valor)}
-            >
-              {f.etiqueta}
-            </Button>
-          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                <Filter className="h-4 w-4" />
+                <span>{filtros.find((f) => f.valor === filtroEstado)?.etiqueta || 'Todos'}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {filtros.map((f) => (
+                <DropdownMenuItem key={f.valor} onClick={() => setFiltroEstado(f.valor)} className="gap-2">
+                  {f.etiqueta}
+                  {filtroEstado === f.valor && <Check className="h-4 w-4 ml-auto" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -336,16 +341,18 @@ export function ClientsBoard({
   )
 }
 
-function ClientDetailDialog({
+export function ClientDetailDialog({
   cliente,
   paquetes,
   sesionesProgramadas,
   sesionesConsumidas,
+  trigger,
 }: {
   cliente: ClienteConStats
   paquetes: Paquete[]
   sesionesProgramadas: SesionProgramada[]
   sesionesConsumidas: SesionConsumida[]
+  trigger?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [showHistorialPaquetes, setShowHistorialPaquetes] = useState(false)
@@ -509,9 +516,11 @@ function ClientDetailDialog({
     <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full justify-center">
-          Ver detalles
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" className="w-full justify-center">
+            Ver detalles
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-1">
