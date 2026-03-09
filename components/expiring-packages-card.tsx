@@ -43,12 +43,12 @@ export function ExpiringPackagesCard({ packages }: { packages: ExpiringPackageIt
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <div onClick={() => setOpen(true)} className="cursor-pointer">
+        <div onClick={() => setOpen(true)} className="cursor-pointer h-full">
           <StatCard
             title="Paquetes por vencer"
             value={count}
-            description="Vencen o vencieron con sesiones pendientes"
             icon={Package}
+            className="aspect-square min-h-[160px]"
           />
         </div>
       </DialogTrigger>

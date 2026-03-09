@@ -5,6 +5,9 @@ import { StatCard } from '@/components/stat-card'
 import { Package } from 'lucide-react'
 import { ClientsQuickList } from '@/components/clients-quick-list'
 import { ExpiringPackagesCard } from '@/components/expiring-packages-card'
+import { burnSessionAction, updateSessionStatusAction } from './sessions/actions'
+import { ConfirmBurnSessionButton } from '@/components/confirm-burn-session-button'
+import { ConfirmCancelSessionButton } from '@/components/confirm-cancel-session-button'
 
 export default async function DashboardPage({
   searchParams,
@@ -37,7 +40,7 @@ export default async function DashboardPage({
   sevenDaysLater.setDate(today.getDate() + 7)
   const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0]
 
-  const [clientsRes, packagesExpiringRes, todaySessionsRes, weekSessionsRes, clientsListRes, packagesListRes] = await Promise.all([
+  const [clientsRes, packagesExpiringRes, todaySessionsRes, weekSessionsRes, clientsListRes, packagesListRes, sesionesProgramadasRes, sesionesConsumidasRes] = await Promise.all([
     supabase
       .from('clientes')
       .select('id', { count: 'exact', head: true })
@@ -53,16 +56,14 @@ export default async function DashboardPage({
       .order('fecha_expiracion', { ascending: true }),
     supabase
       .from('sesiones_programadas')
-      .select('id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo)')
+      .select('id, cliente_id, paquete_id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo, telefono)')
       .eq('usuario_id', user!.id)
-      .eq('estado', 'programada')
       .eq('fecha_sesion', todayStr)
       .order('hora_sesion', { ascending: true }),
     supabase
       .from('sesiones_programadas')
-      .select('id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo)')
+      .select('id, cliente_id, paquete_id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo, telefono)')
       .eq('usuario_id', user!.id)
-      .eq('estado', 'programada')
       .gte('fecha_sesion', weekStartStr)
       .lte('fecha_sesion', weekEndStr)
       .order('fecha_sesion', { ascending: true })
@@ -75,6 +76,14 @@ export default async function DashboardPage({
     supabase
       .from('paquetes_sesiones')
       .select('id, cliente_id, estado, sesiones_totales, sesiones_usadas, fecha_inicio, fecha_expiracion, creado_en')
+      .eq('usuario_id', user!.id),
+    supabase
+      .from('sesiones_programadas')
+      .select('id, cliente_id, paquete_id, fecha_sesion, hora_sesion, estado')
+      .eq('usuario_id', user!.id),
+    supabase
+      .from('sesiones_consumidas')
+      .select('id, cliente_id, paquete_id, consumida_en, notas, origen')
       .eq('usuario_id', user!.id),
   ])
 
@@ -89,6 +98,22 @@ export default async function DashboardPage({
     clientes: { nombre_completo: string | null } | null
   }>).filter((p) => Number(p.sesiones_totales ?? 0) > Number(p.sesiones_usadas ?? 0))
   const expiringPackages = expiringPackagesList.length
+  const sesionesProgramadas = (sesionesProgramadasRes.data ?? []) as Array<{
+    id: string
+    cliente_id: string
+    paquete_id: string | null
+    fecha_sesion: string
+    hora_sesion: string
+    estado: string
+  }>
+  const sesionesConsumidas = (sesionesConsumidasRes.data ?? []) as Array<{
+    id: string
+    cliente_id: string
+    paquete_id: string | null
+    consumida_en: string
+    notas: string | null
+    origen: string | null
+  }>
   const clientsList = (clientsListRes.data ?? []) as Array<{
     id: string
     nombre_completo: string
@@ -122,17 +147,21 @@ export default async function DashboardPage({
   }))
   const todaySessions = (todaySessionsRes.data ?? []) as Array<{
     id: string
+    cliente_id: string
+    paquete_id: string | null
     fecha_sesion: string
     hora_sesion: string
     estado: string
-    clientes: { nombre_completo: string }
+    clientes: { nombre_completo: string; telefono: string | null }
   }>
   const weekSessions = (weekSessionsRes.data ?? []) as Array<{
     id: string
+    cliente_id: string
+    paquete_id: string | null
     fecha_sesion: string
     hora_sesion: string
     estado: string
-    clientes: { nombre_completo: string }
+    clientes: { nombre_completo: string; telefono: string | null }
   }>
 
   const weekByDay = weekSessions.reduce<Record<string, typeof weekSessions>>(
@@ -144,36 +173,75 @@ export default async function DashboardPage({
     {},
   )
 
+  const statusStyles: Record<
+    string,
+    { bg: string; text: string; border: string; label: string }
+  > = {
+    programada: {
+      bg: 'bg-[#e8f1ff]',
+      text: 'text-[#1d4ed8]',
+      border: 'border-l-[#3b82f6]',
+      label: 'Programada',
+    },
+    completada: {
+      bg: 'bg-[#e8f9ef]',
+      text: 'text-[#15803d]',
+      border: 'border-l-[#16a34a]',
+      label: 'Sesión quemada',
+    },
+    cancelada: {
+      bg: 'bg-[#fff1f1]',
+      text: 'text-[#b91c1c]',
+      border: 'border-l-[#ef4444]',
+      label: 'Cancelada',
+    },
+  }
+
+  const displayName = (user?.user_metadata as any)?.full_name || (user?.user_metadata as any)?.name || (user?.email ? user.email.split('@')[0] : 'Coach')
+  const firstName = displayName?.trim()?.split(/\s+/)[0] || displayName
+  const hour = today.getHours()
+  const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
+  const pendingToday = todaySessions.filter((s) => s.estado === 'programada').length
+  const pendingText = pendingToday > 0 ? `${pendingToday} ${pendingToday === 1 ? 'sesión pendiente hoy' : 'sesiones pendientes hoy'}` : 'Sin sesiones programadas para hoy'
+
   return (
     <div className="flex flex-col gap-6 max-w-4xl w-full mx-auto">
-      <div>
-        <h1 className="font-heading text-2xl font-bold text-foreground">Panel</h1>
-        <p className="text-sm text-muted-foreground">Tu resumen rápido del día</p>
-      </div>
-
-      <div className="grid gap-3 grid-cols-2">
-        <ClientsQuickList
-          clients={clientsWithDerivedStatus}
-          count={totalClients}
-          activeClientIds={activeClientIds}
-          paquetes={(packagesListRes.data ?? []).map((p) => ({
-            id: p.id as string,
-            cliente_id: p.cliente_id as string,
-            estado: p.estado as string,
-            sesiones_totales: Number(p.sesiones_totales ?? 0),
-            sesiones_usadas: Number(p.sesiones_usadas ?? 0),
-            fecha_inicio: p.fecha_inicio || null,
-            fecha_expiracion: p.fecha_expiracion || null,
-            creado_en: p.creado_en || null,
-          }))}
-        />
-        <ExpiringPackagesCard
-          packages={expiringPackagesList.map((p) => ({
-            ...p,
-            sesiones_totales: Number(p.sesiones_totales ?? 0),
-            sesiones_usadas: Number(p.sesiones_usadas ?? 0),
-          }))}
-        />
+      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white p-5 sm:p-6 shadow-md">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium opacity-90">Hoy</span>
+          <h1 className="font-heading text-2xl sm:text-3xl font-semibold leading-tight">{greeting}, {firstName}</h1>
+          <p className="text-sm sm:text-base opacity-90">{pendingText}</p>
+        </div>
+        <div className="mt-4 grid gap-4 grid-cols-2 items-stretch">
+          <div className="h-full w-full flex p-0 bg-transparent border-0 shadow-none">
+            <ClientsQuickList
+              clients={clientsWithDerivedStatus}
+              count={totalClients}
+              activeClientIds={activeClientIds}
+              paquetes={(packagesListRes.data ?? []).map((p) => ({
+                id: p.id as string,
+                cliente_id: p.cliente_id as string,
+                estado: p.estado as string,
+                sesiones_totales: Number(p.sesiones_totales ?? 0),
+                sesiones_usadas: Number(p.sesiones_usadas ?? 0),
+                fecha_inicio: p.fecha_inicio || null,
+                fecha_expiracion: p.fecha_expiracion || null,
+                creado_en: p.creado_en || null,
+              }))}
+              sesionesProgramadas={sesionesProgramadas}
+              sesionesConsumidas={sesionesConsumidas}
+            />
+          </div>
+          <div className="h-full w-full flex p-0 bg-transparent border-0 shadow-none">
+            <ExpiringPackagesCard
+              packages={expiringPackagesList.map((p) => ({
+                ...p,
+                sesiones_totales: Number(p.sesiones_totales ?? 0),
+                sesiones_usadas: Number(p.sesiones_usadas ?? 0),
+              }))}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -183,55 +251,115 @@ export default async function DashboardPage({
             <p className="text-sm text-muted-foreground mt-2">No hay sesiones programadas para hoy.</p>
           ) : (
             <div className="mt-3 space-y-2">
-              {todaySessions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded border p-2 bg-muted/40 text-sm">
-                  <div className="flex flex-col">
-                    <span className="text-foreground font-medium">{s.clientes?.nombre_completo || 'Sin nombre'}</span>
-                    <span className="text-muted-foreground">Hoy · {s.hora_sesion}</span>
+              {todaySessions.map((s) => {
+                const phone = s.clientes?.telefono?.replace(/\D/g, '') || ''
+                const waUrl = phone
+                  ? `https://wa.me/${phone}?text=${encodeURIComponent(
+                      `Hola ${s.clientes?.nombre_completo || ''}! Te recuerdo tu sesión programada hoy a las ${s.hora_sesion}.`
+                    )}`
+                  : ''
+                const canBurn = Boolean(s.paquete_id) && s.estado === 'programada'
+                const canCancel = s.estado === 'programada'
+                const statusLabel = s.estado === 'completada' ? 'Quemada' : s.estado === 'cancelada' ? 'Cancelada' : 'Programada'
+                const statusTone = s.estado === 'completada' ? 'text-green-700 bg-green-100' : s.estado === 'cancelada' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground bg-muted/60'
+                const hideActions = s.estado !== 'programada'
+
+                return (
+                  <div key={s.id} className="rounded border p-3 bg-muted/30 text-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-foreground font-medium">{s.clientes?.nombre_completo || 'Sin nombre'}</span>
+                        <span className="text-muted-foreground">Hoy · {s.hora_sesion}</span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${statusTone}`}>{statusLabel}</span>
+                    </div>
+                    {!hideActions && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <ConfirmBurnSessionButton
+                          disabled={!canBurn}
+                          sessionId={s.id}
+                          paqueteId={s.paquete_id ?? ''}
+                          clienteId={s.cliente_id}
+                          action={burnTodaySession}
+                        />
+                        <ConfirmCancelSessionButton
+                          disabled={!canCancel}
+                          sessionId={s.id}
+                          action={cancelTodaySession}
+                        />
+                        <Button asChild variant="secondary" size="sm" className="w-full" disabled={!waUrl}>
+                          {waUrl ? <a href={waUrl} target="_blank" rel="noreferrer">WhatsApp</a> : <span>WhatsApp</span>}
+                        </Button>
+                      </div>
+                    )}
+                    {!s.paquete_id && s.estado === 'programada' && (
+                      <p className="text-xs text-muted-foreground">No hay paquete asociado; asigna uno para quemar sesión.</p>
+                    )}
                   </div>
-                  <span className="text-xs text-muted-foreground">Programada</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
 
         <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <h2 className="text-lg font-semibold text-foreground">Calendario semanal</h2>
-          <div className="flex items-center justify-between text-xs text-muted-foreground mt-1 flex-wrap gap-2">
-            <span>{weekLabel}</span>
-            <div className="flex gap-2 flex-wrap">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">Calendario semanal</h2>
+              <p className="text-xs text-muted-foreground">{weekLabel}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap text-sm">
               <Button asChild variant="outline" size="sm">
-                <Link href={`?weekOffset=${prevOffset}`}>◀ Semana previa</Link>
+                <Link href={`?weekOffset=${prevOffset}`}>◀</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href={`?weekOffset=${nextOffset}`}>Semana siguiente ▶</Link>
+                <Link href={`?weekOffset=${nextOffset}`}>▶</Link>
               </Button>
             </div>
           </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+          <div className="mt-4 grid gap-3 grid-cols-2">
             {Array.from({ length: 7 }).map((_, idx) => {
               const d = new Date(startOfWeek)
               d.setDate(startOfWeek.getDate() + idx)
               const dStr = d.toISOString().split('T')[0]
               const sessions = weekByDay[dStr] || []
-              const label = d.toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: '2-digit' })
+              const weekday = d.toLocaleDateString('es-CL', { weekday: 'short' }).toUpperCase()
+              const dateLabel = d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+
               return (
-                <div key={dStr} className="rounded border bg-background p-3 text-sm space-y-2 min-h-[140px] flex flex-col">
-                  <div className="flex items-center justify-between text-foreground font-medium">
-                    <span className="capitalize">{label}</span>
-                    <span className="text-xs text-muted-foreground">{sessions.length} ses.</span>
+                <div
+                  key={dStr}
+                  className={`rounded-xl border border-[#e5e7eb] bg-white shadow-sm p-3 flex flex-col gap-3 ${idx === 6 ? 'col-span-2' : ''}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{weekday}</span>
+                      <span className="text-xl font-semibold text-foreground leading-none">{dateLabel}</span>
+                    </div>
                   </div>
+
                   {sessions.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Sin sesiones</p>
+                    <div className="text-sm text-muted-foreground">Sin sesiones</div>
                   ) : (
-                    <div className="space-y-2">
-                      {sessions.map((s) => (
-                        <div key={s.id} className="rounded border p-2 bg-muted/40">
-                          <div className="text-xs text-muted-foreground">{s.hora_sesion}</div>
-                          <div className="text-foreground text-sm font-medium leading-tight">{s.clientes?.nombre_completo || 'Sin nombre'}</div>
-                        </div>
-                      ))}
+                    <div className="flex flex-col gap-2">
+                      {sessions.map((s) => {
+                        const style = statusStyles[s.estado] ?? statusStyles.programada
+                        const label = style.label
+                        return (
+                          <div
+                            key={s.id}
+                            className={`rounded-xl border border-transparent ${style.bg} px-3 py-2 flex items-center justify-between gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${style.border}`}
+                            style={{ borderLeftWidth: '6px' }}
+                          >
+                            <div className="flex flex-col leading-tight">
+                              <span className={`text-[11px] font-semibold uppercase tracking-wide ${style.text}`}>{label}</span>
+                              <span className={`text-sm font-semibold ${style.text}`}>{s.hora_sesion?.slice(0, 5) || '--:--'}</span>
+                              <span className="text-sm text-foreground">{s.clientes?.nombre_completo || 'Sin nombre'}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -242,4 +370,23 @@ export default async function DashboardPage({
       </div>
     </div>
   )
+}
+
+// Server action: quemar sesión y marcar como completada
+async function burnTodaySession(formData: FormData) {
+  'use server'
+  const paqueteId = (formData.get('paqueteId') as string) || ''
+  const clienteId = (formData.get('clienteId') as string) || ''
+  const sessionId = (formData.get('sessionId') as string) || ''
+  if (!paqueteId) return
+  await burnSessionAction({ paqueteId, clienteId })
+  await updateSessionStatusAction(sessionId, 'completada')
+}
+
+// Server action: cancelar sesión (queda visible para reprogramar)
+async function cancelTodaySession(formData: FormData) {
+  'use server'
+  const sessionId = (formData.get('sessionId') as string) || ''
+  if (!sessionId) return
+  await updateSessionStatusAction(sessionId, 'cancelada')
 }

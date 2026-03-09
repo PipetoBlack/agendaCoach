@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -21,6 +21,15 @@ export function PackageFormDialog({ defaultClientId }: { defaultClientId?: strin
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const today = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {

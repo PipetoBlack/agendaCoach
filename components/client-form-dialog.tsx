@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -49,6 +49,15 @@ export function ClientFormDialog({
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const isEditing = !!client
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
@@ -135,6 +144,7 @@ export function ClientFormDialog({
                 id="birth_date"
                 name="birth_date"
                 type="date"
+                className="text-sm h-10"
                 defaultValue={client?.fecha_nacimiento ?? ''}
               />
             </div>

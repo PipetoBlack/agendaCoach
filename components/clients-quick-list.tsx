@@ -24,6 +24,8 @@ import {
   selectCurrentActivePackage as selectCurrentActivePackageOriginal,
   type ClienteConStats,
   type Paquete,
+  type SesionProgramada,
+  type SesionConsumida,
 } from '@/components/clients-board'
 
 type ClientItem = {
@@ -88,11 +90,15 @@ export function ClientsQuickList({
   count,
   activeClientIds,
   paquetes,
+  sesionesProgramadas,
+  sesionesConsumidas,
 }: {
   clients: ClientItem[]
   count: number
   activeClientIds: string[]
   paquetes: Paquete[]
+  sesionesProgramadas: SesionProgramada[]
+  sesionesConsumidas: SesionConsumida[]
 }) {
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<string>('todos')
@@ -128,13 +134,13 @@ export function ClientsQuickList({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <div onClick={() => setOpen(true)} className="cursor-pointer">
+        <div onClick={() => setOpen(true)} className="cursor-pointer h-full">
           <StatCard
             title="Total de clientes"
             value={count}
-            description="Base de clientes activa"
             icon={Users}
-          />
+            className="w-full h-full min-h-[120px] sm:min-h-[130px]"
+          /> 
         </div>
       </DialogTrigger>
       <DialogContent className="max-w-lg">
@@ -193,8 +199,8 @@ export function ClientsQuickList({
                   <ClientDetailDialog
                     cliente={clienteStats}
                     paquetes={paquetes.filter((p) => p.cliente_id === c.id)}
-                    sesionesProgramadas={[]}
-                    sesionesConsumidas={[]}
+                    sesionesProgramadas={sesionesProgramadas.filter((s) => s.cliente_id === c.id)}
+                    sesionesConsumidas={sesionesConsumidas.filter((s) => s.cliente_id === c.id)}
                     trigger={
                       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Ver detalle">
                         <Info className="h-4 w-4" />

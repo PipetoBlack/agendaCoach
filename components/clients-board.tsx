@@ -185,16 +185,18 @@ export function ClientsBoard({
   paquetes,
   sesionesProgramadas = [],
   sesionesConsumidas = [],
+  nowIso,
 }: {
   clients: Cliente[]
   paquetes: Paquete[]
   sesionesProgramadas?: SesionProgramada[]
   sesionesConsumidas?: SesionConsumida[]
+  nowIso?: string
 }) {
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<string>('todos')
 
-  const clientesConStats = useMemo(() => buildStats(clients, paquetes), [clients, paquetes])
+  const clientesConStats = useMemo(() => buildStats(clients, paquetes, nowIso), [clients, paquetes, nowIso])
 
   const filtrados = useMemo(() => {
     const term = busqueda.trim().toLowerCase()
