@@ -25,6 +25,8 @@ import {
   Clock,
   Sparkles,
   StickyNote,
+  Trash,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -524,12 +526,12 @@ export function ClientDetailDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-3xl sm:w-full max-h-[90vh] overflow-y-auto p-4">
         <DialogHeader className="space-y-1">
           <DialogTitle className="text-xl capitalize">{cliente.nombre_completo}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="space-y-5 pr-1">
           <div className="grid gap-3 rounded-xl border bg-muted/40 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Sparkles className="h-4 w-4 text-muted-foreground" /> Información Personal
@@ -604,60 +606,65 @@ export function ClientDetailDialog({
           </div>
 
           <div className="grid gap-3 rounded-xl border bg-muted/30 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Package className="h-4 w-4 text-muted-foreground" /> Paquete activo
-              </div>
-              <div className="flex items-center gap-2">
-                {paquetesEnCola.length > 0 && (
-                  <Button variant="secondary" size="sm" onClick={() => setShowCola((v) => !v)}>
-                    {paquetesEnCola.length} en cola
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" disabled={!paqueteActivo} onClick={openExtendDialog}>
-                  Extender
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Package className="h-4 w-4 text-muted-foreground" /> Paquete activo
+            </div>
+            <div className="flex items-center gap-2">
+              {paquetesEnCola.length > 0 && (
+                <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowCola((v) => !v)}>
+                  {paquetesEnCola.length} en cola
                 </Button>
-                {paqueteActivo && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={deletingPackageId === paqueteActivo.id}
-                        onClick={() => setDeleteConfirm('')}
+              )}
+              <Button variant="outline" size="sm" className="flex-1" disabled={!paqueteActivo} onClick={openExtendDialog}>
+                Extender
+              </Button>
+              {paqueteActivo && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="h-9 w-9"
+                      disabled={deletingPackageId === paqueteActivo.id}
+                      onClick={() => setDeleteConfirm('')}
+                      aria-label="Eliminar paquete activo"
+                      title="Eliminar paquete"
+                    >
+                      {deletingPackageId === paqueteActivo.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Eliminar paquete</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Se eliminará este paquete y sus sesiones asociadas. Escribe "Eliminar" para confirmar.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Eliminar"
+                        value={deleteConfirm}
+                        onChange={(e) => setDeleteConfirm(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteConfirm.toLowerCase() !== 'eliminar' || deletingPackageId === paqueteActivo.id}
+                        onClick={() => handleDeletePackage(paqueteActivo.id)}
                       >
-                        {deletingPackageId === paqueteActivo.id ? 'Eliminando...' : 'Eliminar'}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Eliminar paquete</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Se eliminará este paquete y sus sesiones asociadas. Escribe "Eliminar" para confirmar.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="Eliminar"
-                          value={deleteConfirm}
-                          onChange={(e) => setDeleteConfirm(e.target.value)}
-                          className="h-9"
-                        />
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          disabled={deleteConfirm.toLowerCase() !== 'eliminar' || deletingPackageId === paqueteActivo.id}
-                          onClick={() => handleDeletePackage(paqueteActivo.id)}
-                        >
-                          Confirmar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
+                        Confirmar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
 
             {paqueteActivo ? (

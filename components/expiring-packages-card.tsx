@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { StatCard } from '@/components/stat-card'
+import React from 'react'
 import { Package } from 'lucide-react'
 import {
   Dialog,
@@ -23,7 +24,7 @@ export type ExpiringPackageItem = {
   clientes: { nombre_completo: string | null } | null
 }
 
-export function ExpiringPackagesCard({ packages }: { packages: ExpiringPackageItem[] }) {
+export function ExpiringPackagesCard({ packages, trigger }: { packages: ExpiringPackageItem[]; trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false)
 
   const items = useMemo(() => {
@@ -44,19 +45,21 @@ export function ExpiringPackagesCard({ packages }: { packages: ExpiringPackageIt
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <div onClick={() => setOpen(true)} className="cursor-pointer h-full">
-          <StatCard
-            title="Paquetes por vencer"
-            value={count}
-            icon={Package}
-            className="aspect-square min-h-[160px]"
-          />
+          {trigger || (
+            <StatCard
+              title="Paquetes por vencer"
+              value={count}
+              icon={Package}
+              className="w-full h-full min-h-[100px]"
+            />
+          )}
         </div>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[95vw] max-w-lg sm:w-full max-h-[90vh] overflow-y-auto p-4">
         <DialogHeader>
           <DialogTitle>Paquetes por vencer ({count})</DialogTitle>
         </DialogHeader>
-        <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
+        <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
           {items.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay paquetes por vencer en la próxima semana.</p>
           ) : (

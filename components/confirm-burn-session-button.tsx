@@ -20,17 +20,20 @@ type Props = {
   clienteId: string
   disabled?: boolean
   action: (formData: FormData) => Promise<void>
+  trigger?: React.ReactNode
 }
 
-export function ConfirmBurnSessionButton({ sessionId, paqueteId, clienteId, disabled, action }: Props) {
+export function ConfirmBurnSessionButton({ sessionId, paqueteId, clienteId, disabled, action, trigger }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button type="button" disabled={disabled} className="w-full" variant="default" size="sm">
-          Quemar sesión
-        </Button>
+        {trigger ?? (
+          <Button type="button" disabled={disabled} className="w-full" variant="default" size="sm">
+            Quemar sesión
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

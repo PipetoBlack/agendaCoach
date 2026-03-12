@@ -18,17 +18,20 @@ type Props = {
   sessionId: string
   disabled?: boolean
   action: (formData: FormData) => Promise<void>
+  trigger?: React.ReactNode
 }
 
-export function ConfirmCancelSessionButton({ sessionId, disabled, action }: Props) {
+export function ConfirmCancelSessionButton({ sessionId, disabled, action, trigger }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="w-full" disabled={disabled}>
-          Cancelar sesión
-        </Button>
+        {trigger ?? (
+          <Button type="button" variant="outline" size="sm" className="w-full" disabled={disabled}>
+            Cancelar sesión
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

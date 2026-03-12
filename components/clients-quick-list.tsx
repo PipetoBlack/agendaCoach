@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { StatCard } from '@/components/stat-card'
+import { cn } from '@/lib/utils'
+import React from 'react'
 import { Check, Filter, Info, Users } from 'lucide-react'
 import {
   DropdownMenu,
@@ -85,6 +87,16 @@ function selectCurrentActivePackage(pkgs: Paquete[]) {
   return selectCurrentActivePackageOriginal(pkgs)
 }
 
+type ClientsQuickListProps = {
+  clients: ClientItem[]
+  count: number
+  activeClientIds: string[]
+  paquetes: Paquete[]
+  sesionesProgramadas: SesionProgramada[]
+  sesionesConsumidas: SesionConsumida[]
+  trigger?: React.ReactNode
+}
+
 export function ClientsQuickList({
   clients,
   count,
@@ -92,31 +104,35 @@ export function ClientsQuickList({
   paquetes,
   sesionesProgramadas,
   sesionesConsumidas,
-}: {
-  clients: ClientItem[]
-  count: number
-  activeClientIds: string[]
-  paquetes: Paquete[]
-  sesionesProgramadas: SesionProgramada[]
-  sesionesConsumidas: SesionConsumida[]
-}) {
+  trigger,
+}: ClientsQuickListProps) {
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState<string>('todos')
   const [query, setQuery] = useState('')
 
   const activeSet = useMemo(() => new Set(activeClientIds), [activeClientIds])
+  const packagesByClient = useMemo(() => {
+    const map = new Map<string, Paquete[]>()
+    paquetes.forEach((p) => {
+      const list = map.get(p.cliente_id) || []
+      list.push(p)
+      map.set(p.cliente_id, list)
+    })
+    return map
+  }, [paquetes])
+
+  const deriveStatus = (c: ClientItem) => {
+    const pkgsCliente = packagesByClient.get(c.id) || []
+    const { actual } = selectCurrentActivePackage(pkgsCliente)
+    if (activeSet.has(c.id)) return 'activo'
+    if (actual) return 'activo'
+    return 'inactivo'
+  }
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase()
     return clients.filter((c) => {
-      // Si tiene paquete activo/pendiente, se considera activo por sobre el estado "nuevo"
-      const derivedStatus = c.derivedStatus
-        ? c.derivedStatus
-        : activeSet.has(c.id)
-          ? 'activo'
-          : c.estado === 'nuevo'
-            ? 'nuevo'
-            : 'inactivo'
+      const derivedStatus = deriveStatus(c)
       const matchesFilter =
         filter === 'todos'
           ? true
@@ -129,21 +145,23 @@ export function ClientsQuickList({
         (c.rut || '').toLowerCase().includes(term)
       return matchesFilter && matchesSearch
     })
-  }, [clients, filter, query, activeSet])
+  }, [clients, filter, query, activeSet, packagesByClient])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <div onClick={() => setOpen(true)} className="cursor-pointer h-full">
-          <StatCard
-            title="Total de clientes"
-            value={count}
-            icon={Users}
-            className="w-full h-full min-h-[120px] sm:min-h-[130px]"
-          /> 
+          {trigger || (
+            <StatCard
+              title="Total de clientes"
+              value={count}
+              icon={Users}
+              className="w-full h-full min-h-[100px]"
+            />
+          )}
         </div>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[95vw] max-w-lg sm:w-full max-h-[90vh] overflow-y-auto p-4">
         <DialogHeader>
           <DialogTitle>Clientes ({filtered.length})</DialogTitle>
         </DialogHeader>
@@ -175,26 +193,30 @@ export function ClientsQuickList({
             </DropdownMenu>
           </div>
         </div>
-        <div className="space-y-2 max-h-80 overflow-auto pr-1">
+        <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
           {filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">No se encontraron clientes.</p>
           ) : (
             filtered.map((c) => {
-              const derivedStatus = c.derivedStatus
-                ? c.derivedStatus
-                : activeSet.has(c.id)
-                  ? 'activo'
-                  : c.estado === 'nuevo'
-                    ? 'nuevo'
-                    : 'inactivo'
-              const pkgsCliente = paquetes.filter((p) => p.cliente_id === c.id)
+              const derivedStatus = deriveStatus(c)
+              const pkgsCliente = packagesByClient.get(c.id) || []
               const { actual } = selectCurrentActivePackage(pkgsCliente)
               const clienteStats = toClienteConStats(c, paquetes)
               return (
                 <div key={c.id} className="rounded border p-2 flex items-center justify-between text-sm gap-2">
                   <div className="flex items-center gap-2 overflow-hidden">
                     <span className="text-foreground font-medium truncate">{c.nombre_completo}</span>
-                    <Badge variant="secondary" className="capitalize shrink-0">{derivedStatus}</Badge>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'capitalize shrink-0 border',
+                        derivedStatus === 'activo'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                          : 'bg-secondary text-secondary-foreground border-transparent',
+                      )}
+                    >
+                      {derivedStatus}
+                    </Badge>
                   </div>
                   <ClientDetailDialog
                     cliente={clienteStats}
