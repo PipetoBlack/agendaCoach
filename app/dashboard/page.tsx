@@ -1,13 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Package, ArrowLeft, ArrowRight, Users } from 'lucide-react'
+import { Package, ArrowLeft, ArrowRight, Users, RotateCcw } from 'lucide-react'
 import { ClientsQuickList } from '@/components/clients-quick-list'
 import { ExpiringPackagesCard } from '@/components/expiring-packages-card'
 import { MessageCircle, XCircle, CheckCircle2 } from 'lucide-react'
 import { burnSessionAction, updateSessionStatusAction } from './sessions/actions'
 import { ConfirmBurnSessionButton } from '@/components/confirm-burn-session-button'
 import { ConfirmCancelSessionButton } from '@/components/confirm-cancel-session-button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 export default async function DashboardPage({
   searchParams,
@@ -24,6 +35,7 @@ export default async function DashboardPage({
 
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
+  const startOfToday = new Date(todayStr)
   const startOfWeek = new Date(today)
   const day = startOfWeek.getDay()
   const diffToMonday = (day + 6) % 7
@@ -32,7 +44,17 @@ export default async function DashboardPage({
   endOfWeek.setDate(startOfWeek.getDate() + 6)
   const weekStartStr = startOfWeek.toISOString().split('T')[0]
   const weekEndStr = endOfWeek.toISOString().split('T')[0]
-  const weekLabel = `${startOfWeek.toLocaleDateString('es-CL')} a ${endOfWeek.toLocaleDateString('es-CL')}`
+  const formatWeekLabel = (start: Date, end: Date) => {
+    const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
+    const startDay = start.toLocaleDateString('es-CL', { day: 'numeric' })
+    const endDay = end.toLocaleDateString('es-CL', { day: 'numeric' })
+    const startMonth = start.toLocaleDateString('es-CL', { month: 'long' })
+    const endMonth = end.toLocaleDateString('es-CL', { month: 'long' })
+    return sameMonth
+      ? `${startDay} al ${endDay} de ${startMonth}`
+      : `${startDay} de ${startMonth} al ${endDay} de ${endMonth}`
+  }
+  const weekLabel = formatWeekLabel(startOfWeek, endOfWeek)
   const prevOffset = offset - 1
   const nextOffset = offset + 1
 
@@ -196,7 +218,7 @@ export default async function DashboardPage({
 
   const statusStyles: Record<
     string,
-    { bg: string; text: string; border: string; label: string; dot: string }
+    { bg: string; text: string; border: string; label: string; dot: string; cardBorder: string; leftAccent: string }
   > = {
     programada: {
       bg: 'bg-[#e8f1ff]',
@@ -204,6 +226,8 @@ export default async function DashboardPage({
       border: 'border-l-[#3b82f6]',
       label: 'Programada',
       dot: 'bg-[#1d4ed8]',
+      cardBorder: 'border-[#3b82f6]/40',
+      leftAccent: 'border-l-[3px] border-l-[#3b82f6]/60',
     },
     completada: {
       bg: 'bg-[#e8f9ef]',
@@ -211,6 +235,8 @@ export default async function DashboardPage({
       border: 'border-l-[#16a34a]',
       label: 'Completada',
       dot: 'bg-[#15803d]',
+      cardBorder: 'border-[#16a34a]/40',
+      leftAccent: 'border-l-[3px] border-l-[#16a34a]/60',
     },
     cancelada: {
       bg: 'bg-[#fff1f1]',
@@ -218,6 +244,8 @@ export default async function DashboardPage({
       border: 'border-l-[#ef4444]',
       label: 'Cancelada',
       dot: 'bg-[#b91c1c]',
+      cardBorder: 'border-[#ef4444]/40',
+      leftAccent: 'border-l-[3px] border-l-[#ef4444]/60',
     },
   }
 
@@ -395,9 +423,16 @@ export default async function DashboardPage({
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
               </Button>
-              <div className="flex-1 px-2 py-1 text-sm font-semibold text-foreground whitespace-nowrap truncate">
+              <div className="flex-1 px-2 py-1 text-sm font-semibold text-foreground whitespace-nowrap truncate text-center">
                 {offset === 0 ? 'Semana actual' : weekLabel}
               </div>
+              {offset !== 0 && (
+                <Button asChild variant="ghost" size="icon" className="h-9 w-9" aria-label="Volver a semana actual">
+                  <Link href="?weekOffset=0">
+                    <RotateCcw className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
               <Button asChild variant="ghost" size="icon" className="h-9 w-9" aria-label="Semana siguiente">
                 <Link href={`?weekOffset=${nextOffset}`}>
                   <ArrowRight className="h-4 w-4" />
@@ -415,16 +450,13 @@ export default async function DashboardPage({
                 {pair.map((day) => (
                   <div
                     key={day.key}
-                    className="relative rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-3 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col gap-2 w-full"
+                    className={`relative rounded-2xl border p-3 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col gap-2 w-full ${day.isToday ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-gradient-to-b from-white to-slate-50'}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="space-y-0.5">
                         <p className="text-2xl font-bold leading-none text-foreground">{day.weekday}</p>
                         <p className="text-sm font-medium text-muted-foreground">{day.dateLabel}</p>
                       </div>
-                      {day.isToday && (
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-inner">Hoy</span>
-                      )}
                     </div>
 
                     {day.sessions.length === 0 ? (
@@ -433,25 +465,48 @@ export default async function DashboardPage({
                       <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
                         {day.sessions.map((s) => {
                           const style = statusStyles[s.estado] ?? statusStyles.programada
-                          const label = style.label
-                          return (
+                          const canCancelFuture = day.date >= startOfToday && s.estado === 'programada'
+
+                          const card = (
                             <div
-                              key={s.id}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.04)]"
+                              className={`rounded-lg border ${style.cardBorder} ${style.leftAccent} bg-white px-3 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.04)] ${
+                                canCancelFuture ? 'cursor-pointer transition-shadow hover:shadow-[0_6px_18px_rgba(0,0,0,0.08)]' : ''
+                              }`}
                             >
                               <div className="flex flex-col gap-1">
                                 <p className="text-sm font-medium text-foreground leading-snug whitespace-normal break-words text-wrap">
                                   {s.clientes?.nombre_completo || 'Sin nombre'}
                                 </p>
-                                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                <div className="flex items-center text-xs text-muted-foreground">
                                   <span className="whitespace-nowrap">{s.hora_sesion?.slice(0, 5) || '--:--'}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`h-2.5 w-2.5 rounded-full ${style.dot}`} aria-hidden />
-                                    <span className="whitespace-nowrap">{label}</span>
-                                  </div>
                                 </div>
                               </div>
                             </div>
+                          )
+
+                          if (!canCancelFuture) return <div key={s.id}>{card}</div>
+
+                          return (
+                            <AlertDialog key={s.id}>
+                              <AlertDialogTrigger asChild>{card}</AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Cancelar esta sesión agendada?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    ¿Estás seguro de cancelar? La sesión volverá a estar disponible y tendrás que agendarla manualmente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <form action={cancelScheduledSession}>
+                                  <input type="hidden" name="sessionId" value={s.id} />
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel type="button">Volver</AlertDialogCancel>
+                                    <AlertDialogAction type="submit" className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                      Cancelar sesión
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </form>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )
                         })}
                       </div>
@@ -481,6 +536,14 @@ async function burnTodaySession(formData: FormData) {
 
 // Server action: cancelar sesión (queda visible para reprogramar)
 async function cancelTodaySession(formData: FormData) {
+  'use server'
+  const sessionId = (formData.get('sessionId') as string) || ''
+  if (!sessionId) return
+  await updateSessionStatusAction(sessionId, 'cancelada')
+}
+
+// Server action: cancelar sesión desde el calendario semanal (futuras/actual)
+async function cancelScheduledSession(formData: FormData) {
   'use server'
   const sessionId = (formData.get('sessionId') as string) || ''
   if (!sessionId) return
