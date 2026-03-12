@@ -295,10 +295,16 @@ export default async function DashboardPage({
                       `Hola ${s.clientes?.nombre_completo || ''}! Te recuerdo tu sesión programada hoy a las ${s.hora_sesion}.`
                     )}`
                   : ''
+                const timeLabel = s.hora_sesion ? s.hora_sesion.slice(0, 5) : '—'
                 const canBurn = Boolean(s.paquete_id) && s.estado === 'programada'
                 const canCancel = s.estado === 'programada'
-                const statusLabel = s.estado === 'completada' ? 'Quemada' : s.estado === 'cancelada' ? 'Cancelada' : 'Programada'
-                const statusTone = s.estado === 'completada' ? 'text-green-700 bg-green-100' : s.estado === 'cancelada' ? 'text-destructive bg-destructive/10' : 'text-muted-foreground bg-muted/60'
+                const statusLabel = s.estado === 'completada' ? 'Completada' : s.estado === 'cancelada' ? 'Cancelada' : 'Programada'
+                const statusTone =
+                  s.estado === 'completada'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : s.estado === 'cancelada'
+                      ? 'bg-destructive/10 text-destructive'
+                      : 'bg-sky-100 text-sky-800'
                 const hideActions = s.estado !== 'programada'
 
                 return (
@@ -306,7 +312,7 @@ export default async function DashboardPage({
                     <div className="flex items-center justify-between">
                       <div className="flex flex-col">
                         <span className="text-foreground font-medium">{s.clientes?.nombre_completo || 'Sin nombre'}</span>
-                        <span className="text-muted-foreground">Hoy · {s.hora_sesion}</span>
+                        <span className="text-muted-foreground">Hoy · {timeLabel}</span>
                       </div>
                       <span className={`text-xs px-2 py-1 rounded-full ${statusTone}`}>{statusLabel}</span>
                     </div>
