@@ -46,8 +46,7 @@ export function PackageFormDialog({ defaultClientId }: { defaultClientId?: strin
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Package className="mr-2 h-4 w-4" />
+        <Button variant="outline" size="sm" className="w-full justify-center h-10 text-sm">
           Nuevo paquete
         </Button>
       </DialogTrigger>
@@ -88,11 +87,16 @@ export function PackageFormDialog({ defaultClientId }: { defaultClientId?: strin
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="w-full sm:w-auto"
+            >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
               {isPending ? 'Creando...' : 'Crear paquete'}
             </Button>
           </DialogFooter>

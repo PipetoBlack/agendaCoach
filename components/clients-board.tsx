@@ -521,7 +521,7 @@ export function ClientDetailDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button variant="outline" className="w-full justify-center">
+          <Button variant="outline" size="sm" className="w-full justify-center h-10 text-sm">
             Ver detalles
           </Button>
         )}

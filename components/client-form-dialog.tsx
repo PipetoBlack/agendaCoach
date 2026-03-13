@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner'
 import { createClientAction, updateClientAction } from '@/app/dashboard/clients/actions'
 import { Plus, Pencil } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Client {
   id: string
@@ -49,6 +50,52 @@ export function ClientFormDialog({
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const isEditing = !!client
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [defaultFirstName, defaultLastName] = React.useMemo(() => {
+    if (!client?.nombre_completo) return ['', '']
+    const parts = client.nombre_completo.trim().split(/\s+/)
+    if (parts.length === 1) return [parts[0], '']
+    return [parts[0], parts.slice(1).join(' ')]
+  }, [client?.nombre_completo])
+
+  const nameRegex = /^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ\s]{1,20}$/
+  const rutRegex = /^\d{0,9}$/
+  const phoneRegex = /^\+?[0-9]+$/
+  const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+
+  const validateField = (key: string, value: string) => {
+    let error = ''
+    const trimmed = value.trim()
+    switch (key) {
+      case 'first_name':
+      case 'last_name':
+        if (!trimmed) error = 'Requerido'
+        else if (!nameRegex.test(trimmed)) error = 'Solo letras/espacios, máx. 20'
+        break
+      case 'rut':
+        if (trimmed && !rutRegex.test(trimmed)) error = 'Solo números, hasta 9 dígitos'
+        break
+      case 'phone':
+        if (!trimmed) error = 'Requerido'
+        else if (!phoneRegex.test(trimmed)) error = 'Solo números y +'
+        break
+      case 'email':
+        if (trimmed && !emailRegex.test(trimmed)) error = 'Correo inválido'
+        break
+      case 'notes':
+        if (trimmed.length > 100) error = 'Máx. 100 caracteres'
+        break
+      default:
+        break
+    }
+    setErrors((prev) => ({ ...prev, [key]: error }))
+    return error
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    validateField(name, value)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -60,6 +107,16 @@ export function ClientFormDialog({
   }, [open])
 
   const handleSubmit = (formData: FormData) => {
+    // client-side guard before server
+    const fieldsToValidate = ['first_name', 'last_name', 'rut', 'phone', 'email', 'notes']
+    const hasErrors = fieldsToValidate
+      .map((key) => {
+        const val = formData.get(key) as string
+        return validateField(key, val || '')
+      })
+      .some((msg) => msg)
+    if (hasErrors) return
+
     startTransition(async () => {
       try {
         if (isEditing) {
@@ -100,23 +157,57 @@ export function ClientFormDialog({
         </DialogHeader>
         <form action={handleSubmit}>
           <div className="flex flex-col gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="full_name">Nombre completo *</Label>
-              <Input
-                id="full_name"
-                name="full_name"
-                required
-                defaultValue={client?.nombre_completo ?? ''}
-                placeholder="Nombre completo del cliente"
-              />
+            <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="first_name">Nombre *</Label>
+                <Input
+                  id="first_name"
+                  name="first_name"
+                  required
+                  maxLength={20}
+                  pattern="^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ\s]{1,20}$"
+                  title="Solo letras y espacios, máximo 20 caracteres"
+                  defaultValue={defaultFirstName}
+                  placeholder="Nombre"
+                  onBlur={handleBlur}
+                  onChange={(e) => validateField('first_name', e.target.value)}
+                  aria-invalid={!!errors.first_name}
+                  className={cn(errors.first_name && 'border-destructive focus-visible:ring-destructive')}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="last_name">Apellido *</Label>
+                <Input
+                  id="last_name"
+                  name="last_name"
+                  required
+                  maxLength={20}
+                  pattern="^[A-Za-zÁÉÍÓÚÜáéíóúüÑñ\s]{1,20}$"
+                  title="Solo letras y espacios, máximo 20 caracteres"
+                  defaultValue={defaultLastName}
+                  placeholder="Apellido"
+                  onBlur={handleBlur}
+                  onChange={(e) => validateField('last_name', e.target.value)}
+                  aria-invalid={!!errors.last_name}
+                  className={cn(errors.last_name && 'border-destructive focus-visible:ring-destructive')}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="rut">RUT</Label>
               <Input
                 id="rut"
                 name="rut"
+                inputMode="numeric"
+                pattern="^\d{0,9}$"
+                maxLength={9}
+                title="Solo números, hasta 9 dígitos, sin puntos ni guion"
                 defaultValue={client?.rut ?? ''}
-                placeholder="12.345.678-9"
+                placeholder="123456789"
+                onBlur={handleBlur}
+                onChange={(e) => validateField('rut', e.target.value)}
+                aria-invalid={!!errors.rut}
+                className={cn(errors.rut && 'border-destructive focus-visible:ring-destructive')}
               />
             </div>
             <div className="grid gap-2">
@@ -127,15 +218,28 @@ export function ClientFormDialog({
                 type="email"
                 defaultValue={client?.correo ?? ''}
                 placeholder="cliente@ejemplo.com"
+                onBlur={handleBlur}
+                onChange={(e) => validateField('email', e.target.value)}
+                aria-invalid={!!errors.email}
+                className={cn(errors.email && 'border-destructive focus-visible:ring-destructive')}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="phone">Teléfono</Label>
+              <Label htmlFor="phone">Teléfono *</Label>
               <Input
                 id="phone"
                 name="phone"
+                required
+                inputMode="tel"
+                pattern="^\+?[0-9]+$"
+                maxLength={20}
+                title="Solo números y opcional prefijo +"
                 defaultValue={client?.telefono ?? ''}
                 placeholder="+56 9 1234 5678"
+                onBlur={handleBlur}
+                onChange={(e) => validateField('phone', e.target.value)}
+                aria-invalid={!!errors.phone}
+                className={cn(errors.phone && 'border-destructive focus-visible:ring-destructive')}
               />
             </div>
             <div className="grid gap-2">
@@ -167,17 +271,22 @@ export function ClientFormDialog({
               <Textarea
                 id="notes"
                 name="notes"
+                maxLength={100}
                 defaultValue={client?.notas ?? ''}
                 placeholder="Notas opcionales sobre este cliente..."
                 rows={3}
+                onBlur={handleBlur}
+                onChange={(e) => validateField('notes', e.target.value)}
+                aria-invalid={!!errors.notes}
+                className={cn(errors.notes && 'border-destructive focus-visible:ring-destructive')}
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} className="w-full sm:w-auto">
               {isPending
                 ? isEditing
                   ? 'Guardando...'
