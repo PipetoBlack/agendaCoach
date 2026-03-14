@@ -16,30 +16,62 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { CalendarCheck } from 'lucide-react'
+import { CalendarCheck, Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     const supabase = createClient()
     setIsLoading(true)
     setError(null)
+    setMessage(null)
 
     try {
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Ingresa un correo válido')
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       })
       if (error) throw error
       router.push('/dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Ocurrió un error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+    setMessage(null)
+
+    try {
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Ingresa un correo válido para recuperar la contraseña')
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/reset`,
+      })
+      if (error) throw error
+      setMessage('Te enviamos un correo para restablecer tu contraseña.')
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : 'No se pudo enviar el correo de recuperación')
     } finally {
       setIsLoading(false)
     }
@@ -70,21 +102,44 @@ export default function LoginPage() {
                       type="email"
                       placeholder="coach@ejemplo.com"
                       required
+                      maxLength={100}
+                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        maxLength={20}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Tu contraseña"
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute inset-y-0 right-2 flex items-center text-muted-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetPassword}
+                      className="block w-full text-center text-sm text-primary underline underline-offset-4"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
                   </div>
                   {error && <p className="text-sm text-destructive">{error}</p>}
+                  {message && <p className="text-sm text-emerald-600">{message}</p>}
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
                   </Button>

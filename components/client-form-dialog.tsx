@@ -70,7 +70,7 @@ export function ClientFormDialog({
       case 'first_name':
       case 'last_name':
         if (!trimmed) error = 'Requerido'
-        else if (!nameRegex.test(trimmed)) error = 'Solo letras/espacios, máx. 20'
+        else if (!nameRegex.test(trimmed)) error = 'No se admite este formato'
         break
       case 'rut':
         if (trimmed && !rutRegex.test(trimmed)) error = 'Solo números, hasta 9 dígitos'

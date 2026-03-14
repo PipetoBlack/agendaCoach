@@ -22,6 +22,12 @@ export default async function DashboardLayout({
     redirect('/auth/login')
   }
 
+  const { data: profile } = await supabase
+    .from('perfiles')
+    .select('nombre_completo')
+    .eq('id', user.id)
+    .single()
+
   return (
     <SidebarProvider>
       <AppSidebar userEmail={user.email} />
@@ -35,7 +41,7 @@ export default async function DashboardLayout({
               <span>AgendaCoach</span>
             </Link>
           </div>
-          <UserMenu email={user.email || undefined} />
+          <UserMenu email={user.email || undefined} displayName={profile?.nombre_completo || undefined} />
         </header>
         <div className="p-6">{children}</div>
       </main>
