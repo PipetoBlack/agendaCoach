@@ -34,17 +34,17 @@ import Link from 'next/link'
 
 const navItems = [
   {
-    title: 'Panel',
+    title: 'Inicio',
     url: '/dashboard',
     icon: LayoutDashboard,
   },
   {
-    title: 'Clientes',
+    title: 'Gestion de clientes',
     url: '/dashboard/clients',
     icon: Users,
   },
   {
-    title: 'Sesiones',
+    title: 'Agendar sesiones',
     url: '/dashboard/sessions',
     icon: CalendarDays,
   },
@@ -105,11 +105,7 @@ export function AppSidebar({ userEmail }: { userEmail?: string }) {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <SidebarMenuButton>
-                  <User2 className="h-4 w-4" />
-                  <span className="truncate">{userEmail || 'Cuenta'}</span>
-                  <ChevronUp className="ml-auto h-4 w-4" />
-                </SidebarMenuButton>
+
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 side="top"
