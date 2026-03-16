@@ -3,6 +3,15 @@
 import { useMemo, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
@@ -439,8 +448,53 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
               </span>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-2 text-sm text-muted-foreground">
+          <CardFooter className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
             <span>Renovación manejada por el administrador.</span>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button type="button" size="sm" variant="outline">
+                  Renovar plan
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="gap-4">
+                <DialogHeader className="space-y-2">
+                  <DialogTitle>Renovar plan mensual</DialogTitle>
+                  <DialogDescription className="text-base text-foreground">
+                    $4.990/mes
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="rounded-md border bg-emerald-50/70 p-4 text-sm">
+                  <p className="text-foreground font-semibold">Beneficios de renovar</p>
+                  <ul className="mt-2 space-y-1 text-emerald-900">
+                    <li>• Agenda ilimitada y sin restricciones.</li>
+                    <li>• Recordatorios y control de sesiones al día.</li>
+                    <li>• Soporte prioritario y activación exprés.</li>
+                  </ul>
+                </div>
+
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p className="text-foreground font-medium">Cómo renovar</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>Transfiere $4.990.</li>
+                    <li>Envía el comprobante por WhatsApp.</li>
+                    <li>Tu cuenta se activará en minutos.</li>
+                  </ol>
+                </div>
+
+                <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
+                  <Button asChild className="w-full sm:w-auto">
+                    <a
+                      href="https://wa.me/56987206839?text=Hola%2C%20adjunto%20comprobante%20para%20renovar%20mi%20plan%20mensual.%20Gracias."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Enviar comprobante por WhatsApp
+                    </a>
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardFooter>
         </Card>
       </div>

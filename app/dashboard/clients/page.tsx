@@ -45,8 +45,6 @@ export default async function ClientsPage() {
     .select('id, cliente_id, paquete_id, consumida_en, notas, origen')
     .eq('usuario_id', user!.id)
 
-  const nowIso = new Date().toISOString()
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">

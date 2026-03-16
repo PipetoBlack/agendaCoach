@@ -77,13 +77,14 @@ export function AppSidebar({ userEmail, restricted }: { userEmail?: string; rest
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground">Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {(restricted ? [accountItem] : [...navItems, accountItem]).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
+                    className="h-12 text-base font-medium"
                     isActive={
                       item.url === '/dashboard'
                         ? pathname === '/dashboard'
@@ -125,6 +126,15 @@ export function AppSidebar({ userEmail, restricted }: { userEmail?: string; rest
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
+        <div className="px-3 pb-4 text-xs text-sidebar-muted-foreground">
+          Soporte: {' '}
+          <a
+            className="underline hover:text-sidebar-foreground"
+            href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
+          >
+            agendacoachf@gmail.com
+          </a>
+        </div>
       </SidebarFooter>
     </Sidebar>
   )
