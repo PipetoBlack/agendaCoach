@@ -24,13 +24,18 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from('perfiles')
-    .select('nombre_completo')
+    .select('nombre_completo, plan_tipo, plan_fin, estado')
     .eq('id', user.id)
     .single()
 
+  const nowIso = new Date().toISOString()
+  const isRestricted = !profile?.estado
+    || profile?.plan_tipo === 'plan_vencido'
+    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+
   return (
     <SidebarProvider>
-      <AppSidebar userEmail={user.email} />
+      <AppSidebar userEmail={user.email} restricted={isRestricted} />
       <main className="flex-1 overflow-auto">
         <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
           <div className="flex items-center gap-3">

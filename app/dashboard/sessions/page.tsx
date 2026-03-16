@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { SmartSessionPlanner } from '@/components/smart-session-planner'
 
 export default async function SessionsPage() {
@@ -6,6 +7,21 @@ export default async function SessionsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const { data: profile } = await supabase
+    .from('perfiles')
+    .select('plan_tipo, plan_fin, estado')
+    .eq('id', user!.id)
+    .single()
+
+  const nowIso = new Date().toISOString()
+  const isRestricted = !profile?.estado
+    || profile?.plan_tipo === 'plan_vencido'
+    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+
+  if (isRestricted) {
+    redirect('/dashboard/cuenta')
+  }
 
   const [clientsRes, packagesRes, scheduledRes] = await Promise.all([
     supabase

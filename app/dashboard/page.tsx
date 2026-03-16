@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Package, ArrowLeft, ArrowRight, Users, RotateCcw } from 'lucide-react'
 import { ClientsQuickList } from '@/components/clients-quick-list'
@@ -29,6 +30,21 @@ export default async function DashboardPage({
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  const { data: profile } = await supabase
+    .from('perfiles')
+    .select('nombre_completo, plan_tipo, plan_fin, estado')
+    .eq('id', user!.id)
+    .single()
+
+  const nowIso = new Date().toISOString()
+  const isRestricted = !profile?.estado
+    || profile?.plan_tipo === 'plan_vencido'
+    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+
+  if (isRestricted) {
+    redirect('/dashboard/cuenta')
+  }
 
   const params = await searchParams
   const offset = Number(params?.weekOffset ?? '0') || 0
@@ -249,7 +265,10 @@ export default async function DashboardPage({
     },
   }
 
-  const displayName = (user?.user_metadata as any)?.full_name || (user?.user_metadata as any)?.name || (user?.email ? user.email.split('@')[0] : 'Coach')
+  const displayName = profile?.nombre_completo
+    || (user?.user_metadata as any)?.full_name
+    || (user?.user_metadata as any)?.name
+    || (user?.email ? user.email.split('@')[0] : 'Coach')
   const firstName = displayName?.trim()?.split(/\s+/)[0] || displayName
   const hour = today.getHours()
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'

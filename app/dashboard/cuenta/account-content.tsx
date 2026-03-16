@@ -36,6 +36,10 @@ export type AccountContentProps = {
     nombre_completo: string | null
     correo: string | null
     celular: string | null
+    plan_tipo?: string | null
+    plan_inicio?: string | null
+    plan_fin?: string | null
+    estado?: boolean | null
   } | null
 }
 
@@ -47,6 +51,11 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
   const [lastName, setLastName] = useState(initialNames.last)
   const [email, setEmail] = useState(profile?.correo || emailFromAuth || '')
   const [phone, setPhone] = useState(profile?.celular || '')
+
+  const [planType, setPlanType] = useState(profile?.plan_tipo || 'trial')
+  const [planStart, setPlanStart] = useState(profile?.plan_inicio || null)
+  const [planEnd, setPlanEnd] = useState(profile?.plan_fin || null)
+  const [isActive, setIsActive] = useState(profile?.estado ?? true)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -405,20 +414,33 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <div className="flex items-center justify-between text-foreground">
               <span>Plan</span>
-              <span className="font-medium">Básico</span>
+              <span className="font-medium">
+                {planType === 'trial'
+                  ? 'Prueba de 3 días'
+                  : planType === 'plan_mensual'
+                    ? 'Mensual'
+                    : planType === 'plan_vencido'
+                      ? 'Vencido'
+                      : planType || '—'}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span>Fecha de inicio</span>
-              <span>01/01/2024</span>
+              <span>{planStart ? new Date(planStart).toLocaleDateString('es-CL') : '—'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Fecha de término</span>
-              <span>01/01/2025</span>
+              <span>{planEnd ? new Date(planEnd).toLocaleDateString('es-CL') : '—'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Estado</span>
+              <span className={`font-medium ${isActive ? 'text-emerald-600' : 'text-destructive'}`}>
+                {isActive ? 'Activo' : 'Inactivo'}
+              </span>
             </div>
           </CardContent>
-          <CardFooter className="flex gap-2">
-            <Button type="button" variant="secondary">Renovar</Button>
-            <Button type="button" variant="ghost">Cancelar</Button>
+          <CardFooter className="flex gap-2 text-sm text-muted-foreground">
+            <span>Renovación manejada por el administrador.</span>
           </CardFooter>
         </Card>
       </div>

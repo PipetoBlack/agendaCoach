@@ -12,11 +12,23 @@ export default async function AccountPage() {
     redirect('/auth/login')
   }
 
-  const { data: profile } = await supabase
+  const nowIso = new Date().toISOString()
+
+  let { data: profile } = await supabase
     .from('perfiles')
-    .select('nombre_completo, correo, celular')
+    .select('nombre_completo, correo, celular, plan_tipo, plan_inicio, plan_fin, estado')
     .eq('id', user.id)
     .single()
+
+  if (profile && profile.estado && profile.plan_fin && profile.plan_fin < nowIso) {
+    const { data: updated } = await supabase
+      .from('perfiles')
+      .update({ estado: false })
+      .eq('id', user.id)
+      .select('nombre_completo, correo, celular, plan_tipo, plan_inicio, plan_fin, estado')
+      .single()
+    profile = updated ?? profile
+  }
 
   return (
     <AccountContent

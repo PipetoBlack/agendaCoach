@@ -50,7 +50,13 @@ const navItems = [
   },
 ]
 
-export function AppSidebar({ userEmail }: { userEmail?: string }) {
+const accountItem = {
+  title: 'Mi cuenta',
+  url: '/dashboard/cuenta',
+  icon: User2,
+}
+
+export function AppSidebar({ userEmail, restricted }: { userEmail?: string; restricted?: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   const { setOpenMobile, isMobile } = useSidebar()
@@ -74,7 +80,7 @@ export function AppSidebar({ userEmail }: { userEmail?: string }) {
           <SidebarGroupLabel>Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              {(restricted ? [accountItem] : [...navItems, accountItem]).map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
