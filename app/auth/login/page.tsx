@@ -65,8 +65,11 @@ export default function LoginPage() {
         throw new Error('Ingresa un correo válido para recuperar la contraseña')
       }
 
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || window.location.origin
+
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/reset`,
+        redirectTo: `${siteUrl}/auth/reset`,
       })
       if (error) throw error
       setMessage('Te enviamos un correo para restablecer tu contraseña.')

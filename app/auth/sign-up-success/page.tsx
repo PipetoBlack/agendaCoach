@@ -26,6 +26,7 @@ function SignUpSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClient()
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
   const email = searchParams.get('email') || ''
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +38,6 @@ function SignUpSuccessContent() {
     setError(null)
     try {
       if (!email) throw new Error('No se detectó el correo. Regresa y registra de nuevo.')
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
       const { error: resendError } = await supabase.auth.resend({
         type: 'signup',
         email,
