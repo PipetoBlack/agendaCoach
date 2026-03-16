@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,14 @@ import { Eye, EyeOff, LockKeyhole } from 'lucide-react'
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,20}$/
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-svh w-full items-center justify-center bg-muted" />}>
+      <ResetPasswordContent />
+    </Suspense>
+  )
+}
+
+function ResetPasswordContent() {
   const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()

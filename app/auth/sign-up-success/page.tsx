@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,6 +15,14 @@ import { CalendarCheck, MailCheck } from 'lucide-react'
 import Link from 'next/link'
 
 export default function SignUpSuccessPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-svh w-full items-center justify-center bg-muted" />}>
+      <SignUpSuccessContent />
+    </Suspense>
+  )
+}
+
+function SignUpSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const supabase = createClient()
