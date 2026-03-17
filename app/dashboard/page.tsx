@@ -340,12 +340,12 @@ export default async function DashboardPage({
             <div className="mt-3 space-y-2">
               {todaySessions.map((s) => {
                 const phone = s.clientes?.telefono?.replace(/\D/g, '') || ''
+                const timeLabel = s.hora_sesion ? s.hora_sesion.slice(0, 5) : '—'
                 const waUrl = phone
                   ? `https://wa.me/${phone}?text=${encodeURIComponent(
-                      `Hola ${s.clientes?.nombre_completo || ''}! Te recuerdo tu sesión programada hoy a las ${s.hora_sesion}.`
+                      `Hola ${s.clientes?.nombre_completo || ''}! Te recuerdo tu sesión programada hoy a las ${timeLabel}.`
                     )}`
                   : ''
-                const timeLabel = s.hora_sesion ? s.hora_sesion.slice(0, 5) : '—'
                 const canBurn = Boolean(s.paquete_id) && s.estado === 'programada'
                 const canCancel = s.estado === 'programada'
                 const statusLabel = s.estado === 'completada' ? 'Completada' : s.estado === 'cancelada' ? 'Cancelada' : 'Programada'
