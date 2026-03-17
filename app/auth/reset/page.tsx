@@ -66,7 +66,7 @@ function ResetPasswordContent() {
           <Card>
             <CardHeader>
               <CardTitle className="font-heading text-xl">Enlace expirado</CardTitle>
-              <CardDescription>Vuelve a solicitar el restablecimiento de contraseña.</CardDescription>
+              <CardDescription>Recarga la pagina o bien, vuelve a solicitar el restablecimiento de contraseña.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-destructive">{error}</p>
