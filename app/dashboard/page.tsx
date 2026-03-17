@@ -49,17 +49,20 @@ export default async function DashboardPage({
   const params = await searchParams
   const offset = Number(params?.weekOffset ?? '0') || 0
 
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
-  const startOfToday = new Date(todayStr)
-  const startOfWeek = new Date(today)
+  const timeZone = 'America/Santiago'
+  const now = new Date()
+  const toYmd = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone }).format(d)
+  const todayStr = toYmd(now)
+  const today = new Date(new Date(now.toLocaleString('en-US', { timeZone })).getTime())
+  const startOfToday = new Date(`${todayStr}T00:00:00`)
+  const startOfWeek = new Date(startOfToday)
   const day = startOfWeek.getDay()
   const diffToMonday = (day + 6) % 7
   startOfWeek.setDate(startOfWeek.getDate() - diffToMonday + offset * 7)
   const endOfWeek = new Date(startOfWeek)
   endOfWeek.setDate(startOfWeek.getDate() + 6)
-  const weekStartStr = startOfWeek.toISOString().split('T')[0]
-  const weekEndStr = endOfWeek.toISOString().split('T')[0]
+  const weekStartStr = toYmd(startOfWeek)
+  const weekEndStr = toYmd(endOfWeek)
   const formatWeekLabel = (start: Date, end: Date) => {
     const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
     const startDay = start.toLocaleDateString('es-CL', { day: 'numeric' })
@@ -76,7 +79,7 @@ export default async function DashboardPage({
 
   const sevenDaysLater = new Date(today)
   sevenDaysLater.setDate(today.getDate() + 7)
-  const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0]
+  const sevenDaysLaterStr = toYmd(sevenDaysLater)
 
   const [clientsRes, packagesExpiringRes, todaySessionsRes, weekSessionsRes, clientsListRes, packagesListRes, sesionesProgramadasRes, sesionesConsumidasRes] = await Promise.all([
     supabase
@@ -274,9 +277,9 @@ export default async function DashboardPage({
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches'
   const pendingToday = todaySessions.filter((s) => s.estado === 'programada').length
   const pendingText = pendingToday > 0 ? `${pendingToday} ${pendingToday === 1 ? 'sesión pendiente hoy' : 'sesiones pendientes hoy'}` : 'Sin sesiones programadas para hoy'
-  const weekdayLabel = today.toLocaleDateString('es-CL', { weekday: 'long' })
-  const dayLabel = today.toLocaleDateString('es-CL', { day: '2-digit' })
-  const monthLabel = today.toLocaleDateString('es-CL', { month: 'long' })
+  const weekdayLabel = today.toLocaleDateString('es-CL', { weekday: 'long', timeZone })
+  const dayLabel = today.toLocaleDateString('es-CL', { day: '2-digit', timeZone })
+  const monthLabel = today.toLocaleDateString('es-CL', { month: 'long', timeZone })
   const todayLabel = `${weekdayLabel} ${dayLabel} de ${monthLabel}`
 
   return (
