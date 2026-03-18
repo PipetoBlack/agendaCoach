@@ -61,7 +61,7 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
   const [email, setEmail] = useState(profile?.correo || emailFromAuth || '')
   const [phone, setPhone] = useState(profile?.celular || '')
 
-  const [planType, setPlanType] = useState(profile?.plan_tipo || 'trial')
+  const [planType, setPlanType] = useState(profile?.plan_tipo || 'trial_14')
   const [planStart, setPlanStart] = useState(profile?.plan_inicio || null)
   const [planEnd, setPlanEnd] = useState(profile?.plan_fin || null)
   const [isActive, setIsActive] = useState(profile?.estado ?? true)
@@ -424,13 +424,15 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
             <div className="flex items-center justify-between text-foreground">
               <span>Plan</span>
               <span className="font-medium">
-                {planType === 'trial'
-                  ? 'Prueba de 3 días'
-                  : planType === 'plan_mensual'
-                    ? 'Mensual'
-                    : planType === 'plan_vencido'
-                      ? 'Vencido'
-                      : planType || '—'}
+                {planType === 'trial_14'
+                  ? 'Prueba de 14 días'
+                  : planType === 'trial'
+                    ? 'Prueba de 3 días'
+                    : planType === 'plan_mensual'
+                      ? 'Mensual'
+                      : planType === 'plan_vencido'
+                        ? 'Vencido'
+                        : planType || '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">

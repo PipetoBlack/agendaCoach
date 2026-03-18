@@ -29,6 +29,8 @@ import {
   LogOut,
   ChevronUp,
   User2,
+  Mail,
+  Instagram,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -126,14 +128,27 @@ export function AppSidebar({ userEmail, restricted }: { userEmail?: string; rest
             </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
-        <div className="px-3 pb-4 text-xs text-sidebar-muted-foreground">
-          Soporte: {' '}
-          <a
-            className="underline hover:text-sidebar-foreground"
-            href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
-          >
-            agendacoachf@gmail.com
-          </a>
+        <div className="px-3 pb-4 text-sm text-sidebar-muted-foreground space-y-3">
+          <div className="flex items-center gap-2">
+            <Instagram className="h-5 w-5" />
+            <a
+              className="underline hover:text-sidebar-foreground"
+              href="https://www.instagram.com/agenda.coach"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Instagram
+            </a>
+          </div>
+          <div className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            <a
+              className="underline hover:text-sidebar-foreground"
+              href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
+            >
+              Soporte y sugerencias
+            </a>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
