@@ -23,6 +23,7 @@ export default function SignUpPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [confirmEmail, setConfirmEmail] = useState('')
   const [password, setPassword] = useState('')
   const [repeatPassword, setRepeatPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -58,6 +59,11 @@ export default function SignUpPage() {
         if (!trimmed) return 'Requerida'
         if (helpers?.password && trimmed !== helpers.password) return 'No coincide'
         return ''
+      case 'confirmEmail':
+        if (!trimmed) return 'Requerido'
+        if (!emailRegex.test(trimmed)) return 'Correo inválido'
+        if (helpers?.email && trimmed !== helpers.email) return 'No coincide'
+        return ''
       default:
         return ''
     }
@@ -72,6 +78,7 @@ export default function SignUpPage() {
     const fErr = validateField('firstName', firstName)
     const lErr = validateField('lastName', lastName)
     const eErr = validateField('email', email)
+    const cEmailErr = validateField('confirmEmail', confirmEmail, { email })
     const pErr = validateField('password', password)
     const rErr = validateField('repeatPassword', repeatPassword, { password })
 
@@ -79,11 +86,12 @@ export default function SignUpPage() {
       firstName: fErr,
       lastName: lErr,
       email: eErr,
+      confirmEmail: cEmailErr,
       password: pErr,
       repeatPassword: rErr,
     })
 
-    if (fErr || lErr || eErr || pErr || rErr) {
+    if (fErr || lErr || eErr || cEmailErr || pErr || rErr) {
       setIsLoading(false)
       return
     }
@@ -91,22 +99,25 @@ export default function SignUpPage() {
     const fullName = `${toTitle(firstName)} ${toTitle(lastName)}`.trim()
 
     try {
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || window.location.origin
-
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
-          emailRedirectTo: `${siteUrl}/dashboard`,
           data: {
             full_name: fullName,
           },
         },
       })
-      if (error) throw error
-      const encodedEmail = encodeURIComponent(email.trim())
-      router.push(`/auth/sign-up-success?email=${encodedEmail}`)
+      if (signUpError) throw signUpError
+
+      // Attempt sign-in immediately (requires email confirmations deshabilitadas en Supabase)
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      if (signInError) throw signInError
+
+      router.push('/dashboard')
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'Ocurrió un error')
     } finally {
@@ -183,12 +194,33 @@ export default function SignUpPage() {
                       onChange={(e) => {
                         setEmail(e.target.value)
                         const err = validateField('email', e.target.value)
-                        setFieldErrors((prev) => ({ ...prev, email: err }))
+                        const confirmErr = validateField('confirmEmail', confirmEmail, { email: e.target.value })
+                        setFieldErrors((prev) => ({ ...prev, email: err, confirmEmail: confirmErr }))
                       }}
                       aria-invalid={!!fieldErrors.email}
                       className={cn(fieldErrors.email && 'border-destructive focus-visible:ring-destructive')}
                     />
                     {fieldErrors.email && <p className="text-sm text-destructive">{fieldErrors.email}</p>}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirm-email">Confirma el correo electrónico</Label>
+                    <Input
+                      id="confirm-email"
+                      type="email"
+                      placeholder="coach@ejemplo.com"
+                      required
+                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                      maxLength={100}
+                      value={confirmEmail}
+                      onChange={(e) => {
+                        setConfirmEmail(e.target.value)
+                        const err = validateField('confirmEmail', e.target.value, { email })
+                        setFieldErrors((prev) => ({ ...prev, confirmEmail: err }))
+                      }}
+                      aria-invalid={!!fieldErrors.confirmEmail}
+                      className={cn(fieldErrors.confirmEmail && 'border-destructive focus-visible:ring-destructive')}
+                    />
+                    {fieldErrors.confirmEmail && <p className="text-sm text-destructive">{fieldErrors.confirmEmail}</p>}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="password">Contraseña</Label>
