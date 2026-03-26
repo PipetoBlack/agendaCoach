@@ -92,11 +92,6 @@ export async function createRecurringSessionsAction({
     }
   }
 
-  const desiredTotal = Math.max(selectedDays.length * sanitizedWeeks, 0)
-  if (desiredTotal > remaining) {
-    throw new Error('La cantidad solicitada excede las sesiones disponibles del paquete')
-  }
-
   const occurrences: Date[] = []
   for (const cursor = new Date(start); cursor < limitDate && occurrences.length < maxCount; cursor.setDate(cursor.getDate() + 1)) {
     if (selectedDays.includes(cursor.getDay())) {

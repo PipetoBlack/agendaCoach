@@ -160,8 +160,7 @@ export function SmartSessionPlanner({
     !!startDate &&
     !!sessionTime &&
     weeksValue > 0 &&
-    willCreate > 0 &&
-    !overLimit
+    willCreate > 0
 
   const handleSubmit = () => {
     if (!canSubmit) {
@@ -311,7 +310,6 @@ export function SmartSessionPlanner({
             <div>
               Se crearán <strong className="text-foreground">{willCreate}</strong> de {planned || 0} sesiones planificadas
               {selectedPkgData && planned > remaining ? ' (limitadas por el paquete)' : ''}
-              {selectedPkgData && overLimit ? ' (reduce días/semanas: supera el paquete)' : ''}
               {selectedPkgData && expiryBoundary && willCreate < planned ? ' (acotadas por la fecha de término)' : ''}.
               {selectedPkgData && expiryBoundary && new Date(`${startDate}T00:00:00`) >= expiryBoundary && (
                   <span className="text-destructive"> La fecha de inicio está vencida para este paquete.</span>
