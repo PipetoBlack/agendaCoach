@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { PackageFormDialog } from '@/components/package-form-dialog'
 import { EditClientButton } from '@/components/client-form-dialog'
 import { DeleteClientButton } from '@/components/delete-client-button'
-import { burnSessionAction, deletePackageAction, updatePackageExpiryAction } from '@/app/dashboard/sessions/actions'
+import { burnSessionAction, deletePackageAction, restoreBurnedSessionAction, updatePackageExpiryAction } from '@/app/dashboard/sessions/actions'
 import {
   Mail,
   Phone,
@@ -21,6 +21,7 @@ import {
   PhoneCall,
   MailCheck,
   Flame,
+  Undo2,
   Calendar,
   Clock,
   Sparkles,
@@ -371,6 +372,10 @@ export function ClientDetailDialog({
   const [filtroFechaQuemadas, setFiltroFechaQuemadas] = useState('')
   const [paginaQuemadas, setPaginaQuemadas] = useState(1)
   const [confirmBurnOpen, setConfirmBurnOpen] = useState(false)
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false)
+  const [restoreTarget, setRestoreTarget] = useState<SesionConsumida | null>(null)
+  const [restoreConfirm, setRestoreConfirm] = useState('')
+  const [isRestoring, setIsRestoring] = useState(false)
 
   useEffect(() => {
     setPaginaQuemadas(1)
@@ -481,6 +486,29 @@ export function ClientDetailDialog({
       .then(() => toast.success('Sesión quemada'))
       .catch((err) => toast.error(err instanceof Error ? err.message : 'No se pudo quemar la sesión'))
       .finally(() => setIsBurning(false))
+  }
+
+  const openRestoreDialog = (consumo: SesionConsumida) => {
+    setRestoreTarget(consumo)
+    setRestoreConfirm('')
+    setShowRestoreDialog(true)
+  }
+
+  const handleRestore = () => {
+    if (!restoreTarget) return
+    if (restoreConfirm !== 'Restablecer') {
+      toast.error('Debes escribir "Restablecer" para confirmar')
+      return
+    }
+    setIsRestoring(true)
+    restoreBurnedSessionAction(restoreTarget.id)
+      .then(() => {
+        toast.success('Sesión restablecida al paquete')
+        setShowRestoreDialog(false)
+        setRestoreTarget(null)
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : 'No se pudo restablecer la sesión'))
+      .finally(() => setIsRestoring(false))
   }
 
   const handleDeletePackage = (packageId: string) => {
@@ -792,13 +820,32 @@ export function ClientDetailDialog({
             {ultimasQuemadas.length > 0 ? (
               <div className="space-y-2 text-sm text-foreground">
                 {ultimasQuemadas.map((s) => (
-                  <div key={s.id} className="rounded border p-2 bg-muted/30">
-                    <div className="flex items-center justify-between text-sm font-medium">
-                      <span>Sesion quemada</span>
-                      <span className="text-xs text-muted-foreground">{s.origen || 'manual'}</span>
+                  <div
+                    key={s.id}
+                    className="rounded-lg border bg-muted/20 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 text-[11px] text-foreground">
+                          <Flame className="h-4 w-4" />
+                        </span>
+                        <span>Sesión quemada</span>
+                      </div>
+                      <Badge variant="secondary" className="text-[11px] font-normal">
+                        {s.origen || 'manual'}
+                      </Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground">{formatDateTime(s.consumida_en)}</div>
-                    {s.notas && <div className="text-xs text-muted-foreground">{s.notas}</div>}
+                    <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                      <div>{formatDateTime(s.consumida_en)}</div>
+                      <Button variant="outline" size="xs" className="h-7 px-2" onClick={() => openRestoreDialog(s)}>
+                        <Undo2 className="mr-1 h-3.5 w-3.5" /> Restablecer
+                      </Button>
+                    </div>
+                    {s.notas && (
+                      <div className="mt-2 rounded bg-background/80 px-2 py-1 text-xs text-muted-foreground">
+                        {s.notas}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -924,15 +971,34 @@ export function ClientDetailDialog({
                   </div>
                   <div className="space-y-2">
                     {grupo.sesiones.map((s) => (
-                      <div key={s.id} className="rounded border p-2 bg-background">
-                        <div className="flex items-center justify-between text-sm font-medium">
-                          <span>Sesión quemada</span>
-                          <span className="text-xs text-muted-foreground">{s.origen || 'manual'}</span>
+                      <div
+                        key={s.id}
+                        className="rounded-lg border p-3 bg-background shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground/5 text-[11px] text-foreground">
+                              <Flame className="h-4 w-4" />
+                            </span>
+                            <span>Sesión quemada</span>
+                          </div>
+                          <Badge variant="secondary" className="text-[11px] font-normal">
+                            {s.origen || 'manual'}
+                          </Badge>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(s.consumida_en).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+                          <div>
+                            {new Date(s.consumida_en).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <Button variant="outline" size="xs" className="h-7 px-2" onClick={() => openRestoreDialog(s)}>
+                            <Undo2 className="mr-1 h-3.5 w-3.5" /> Restablecer
+                          </Button>
                         </div>
-                        {s.notas && <div className="text-xs text-muted-foreground">{s.notas}</div>}
+                        {s.notas && (
+                          <div className="mt-2 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+                            {s.notas}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -968,6 +1034,35 @@ export function ClientDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Restablecer sesión quemada</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta acción devolverá la sesión al paquete y podrás volver a usarla o agendarla.
+            Escribe "Restablecer" para confirmar.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-2">
+          <Input
+            autoFocus
+            placeholder="Restablecer"
+            value={restoreConfirm}
+            onChange={(e) => setRestoreConfirm(e.target.value)}
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isRestoring}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={isRestoring || restoreConfirm !== 'Restablecer'}
+            onClick={handleRestore}
+          >
+            {isRestoring ? 'Restableciendo...' : 'Restablecer'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
 
     </>
   )

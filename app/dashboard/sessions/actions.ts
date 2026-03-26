@@ -165,6 +165,59 @@ export async function burnSessionAction({ paqueteId, clienteId }: { paqueteId: s
   revalidatePath('/dashboard')
 }
 
+export async function restoreBurnedSessionAction(consumidaId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error('No autenticado')
+
+  const { data: consumo, error: consumoError } = await supabase
+    .from('sesiones_consumidas')
+    .select('id, paquete_id, cliente_id')
+    .eq('id', consumidaId)
+    .eq('usuario_id', user.id)
+    .single()
+
+  if (consumoError) throw new Error(consumoError.message)
+  if (!consumo) throw new Error('Sesión no encontrada')
+  if (!consumo.paquete_id) throw new Error('La sesión no tiene paquete asociado')
+
+  const { data: pkg, error: pkgError } = await supabase
+    .from('paquetes_sesiones')
+    .select('id, sesiones_usadas, sesiones_totales, estado')
+    .eq('id', consumo.paquete_id)
+    .eq('usuario_id', user.id)
+    .single()
+
+  if (pkgError) throw new Error(pkgError.message)
+  if (!pkg) throw new Error('Paquete no encontrado')
+
+  const newUsed = Math.max((pkg.sesiones_usadas ?? 0) - 1, 0)
+  const newEstado = newUsed >= (pkg.sesiones_totales ?? 0) ? 'completado' : 'activo'
+
+  const { error: deleteError } = await supabase
+    .from('sesiones_consumidas')
+    .delete()
+    .eq('id', consumidaId)
+    .eq('usuario_id', user.id)
+
+  if (deleteError) throw new Error(deleteError.message)
+
+  const { error: updateError } = await supabase
+    .from('paquetes_sesiones')
+    .update({ sesiones_usadas: newUsed, estado: newEstado })
+    .eq('id', consumo.paquete_id)
+    .eq('usuario_id', user.id)
+
+  if (updateError) throw new Error(updateError.message)
+
+  revalidatePath('/dashboard/clients')
+  revalidatePath('/dashboard/sessions')
+  revalidatePath('/dashboard')
+}
+
 export async function updateSessionStatusAction(
   sessionId: string,
   status: string,
