@@ -676,7 +676,11 @@ export function ClientDetailDialog({
                       <Input
                         placeholder="Eliminar"
                         value={deleteConfirm}
-                        onChange={(e) => setDeleteConfirm(e.target.value)}
+                        maxLength={12}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '').slice(0, 12)
+                          setDeleteConfirm(sanitized)
+                        }}
                         className="h-9"
                       />
                     </div>
@@ -1049,7 +1053,11 @@ export function ClientDetailDialog({
             autoFocus
             placeholder="Restablecer"
             value={restoreConfirm}
-            onChange={(e) => setRestoreConfirm(e.target.value)}
+            maxLength={12}
+            onChange={(e) => {
+              const sanitized = e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '').slice(0, 12)
+              setRestoreConfirm(sanitized)
+            }}
           />
         </div>
         <AlertDialogFooter>
