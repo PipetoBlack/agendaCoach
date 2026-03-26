@@ -137,12 +137,20 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
     startSavingProfile(async () => {
       try {
         const nombreCompleto = `${titleCase(firstName)} ${titleCase(lastName)}`.trim()
+        // Preservar datos de plan al actualizar (evita que triggers/defaults modifiquen el plan)
+        const currentPlan = {
+          plan_tipo: profile?.plan_tipo ?? null,
+          plan_inicio: profile?.plan_inicio ?? null,
+          plan_fin: profile?.plan_fin ?? null,
+          estado: profile?.estado ?? null,
+        }
         const { error } = await supabase
           .from('perfiles')
           .update({
             nombre_completo: nombreCompleto,
             correo: email.trim(),
             celular: phone.trim() || null,
+            ...currentPlan,
           })
           .eq('id', userId)
 

@@ -24,7 +24,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from('perfiles')
-    .select('nombre_completo, plan_tipo, plan_fin, estado')
+    .select('nombre_completo, plan_tipo, plan_inicio, plan_fin, estado')
     .eq('id', user.id)
     .single()
 
@@ -35,7 +35,13 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar userEmail={user.email} restricted={isRestricted} />
+      <AppSidebar
+        userEmail={user.email}
+        restricted={isRestricted}
+        planTipo={profile?.plan_tipo || undefined}
+        planInicio={profile?.plan_inicio || undefined}
+        planFin={profile?.plan_fin || undefined}
+      />
       <main className="flex-1 overflow-auto">
         <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
           <div className="flex items-center gap-3">
