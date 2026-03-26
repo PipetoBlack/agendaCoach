@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { createPackageAction } from '@/app/dashboard/sessions/actions'
-import { Package, CalendarDays } from 'lucide-react'
 
 export function PackageFormDialog({ defaultClientId }: { defaultClientId?: string }) {
   const [open, setOpen] = useState(false)
@@ -73,10 +72,13 @@ export function PackageFormDialog({ defaultClientId }: { defaultClientId?: strin
             </div>
             <div className="grid gap-2">
               <Label>Fecha de inicio</Label>
-              <div className="flex items-center gap-2 rounded-md border border-input bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
-                <CalendarDays className="h-4 w-4" />
-                <span>{today}</span>
-              </div>
+              <Input
+                id="start_date"
+                name="start_date"
+                type="date"
+                defaultValue={today}
+                required
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="expiry_date">Fecha de vencimiento (opcional)</Label>

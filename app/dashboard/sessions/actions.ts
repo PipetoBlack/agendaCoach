@@ -194,15 +194,15 @@ export async function createPackageAction(formData: FormData) {
   } = await supabase.auth.getUser()
 
   if (!user) throw new Error('No autenticado')
-
-  const fechaInicio = new Date().toISOString()
+  const startDate = formData.get('start_date') as string
+  if (!startDate) throw new Error('Fecha de inicio requerida')
   const { error } = await supabase.from('paquetes_sesiones').insert({
     usuario_id: user.id,
     cliente_id: formData.get('client_id') as string,
     sesiones_totales: Number(formData.get('total_sessions')),
     sesiones_usadas: 0,
     fecha_expiracion: (formData.get('expiry_date') as string) || null,
-    fecha_inicio: fechaInicio,
+    fecha_inicio: startDate,
     estado: 'activo',
   })
 
