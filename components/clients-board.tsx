@@ -934,7 +934,7 @@ export function ClientDetailDialog({
     </Dialog>
 
     <Dialog open={showHistorialQuemadas} onOpenChange={setShowHistorialQuemadas}>
-      <DialogContent className="w-full max-w-2xl sm:max-w-2xl max-h-[85vh] overflow-hidden p-4 sm:p-6">
+      <DialogContent className="w-full max-w-2xl sm:max-w-2xl max-h-[90vh] overflow-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Historial de sesiones quemadas</DialogTitle>
           <DialogDescription>
@@ -962,7 +962,7 @@ export function ClientDetailDialog({
           {historialQuemadas.grupos.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay sesiones quemadas para la fecha seleccionada.</p>
           ) : (
-            <div className="space-y-4 max-h-[60vh] overflow-auto pr-1 sm:pr-2">
+            <div className="space-y-4 max-h-[55vh] overflow-auto pr-1 sm:pr-2">
               {historialQuemadas.grupos.map((grupo) => (
                 <div key={grupo.fechaKey} className="space-y-2 rounded-lg border bg-muted/30 p-3">
                   <div className="flex items-center justify-between text-sm font-semibold text-foreground">
