@@ -84,9 +84,11 @@ export function SmartSessionPlanner({
   const [selectedDays, setSelectedDays] = useState<number[]>([])
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [sessionTime, setSessionTime] = useState('')
-  const [weeks, setWeeks] = useState(4)
+  const [weeksInput, setWeeksInput] = useState('4')
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+
+  const weeksValue = weeksInput === '' ? 0 : Math.max(1, Number(weeksInput) || 0)
 
   const clientPackages = useMemo(
     () =>
@@ -120,13 +122,13 @@ export function SmartSessionPlanner({
   const expiryDate = selectedPkgData?.fecha_expiracion ? new Date(selectedPkgData.fecha_expiracion) : null
   const expiryBoundary = expiryDate ? new Date(expiryDate.getTime() + 24 * 60 * 60 * 1000) : null
 
-  const planned = selectedDays.length * weeks
+  const planned = selectedDays.length * weeksValue
 
   const occurrences = useMemo(() => {
     if (!selectedPkgData || remaining <= 0) return []
     const start = new Date(`${startDate}T00:00:00`)
     let limitDate = new Date(start)
-    limitDate.setDate(limitDate.getDate() + weeks * 7)
+    limitDate.setDate(limitDate.getDate() + weeksValue * 7)
     if (expiryBoundary && expiryBoundary < limitDate) {
       limitDate = expiryBoundary
     }
@@ -134,11 +136,11 @@ export function SmartSessionPlanner({
     return generateOccurrences({
       startDate,
       days: selectedDays,
-      weeks,
+      weeks: weeksValue,
       maxCount: remaining,
       limitDateOverride: limitDate,
     })
-  }, [selectedPkgData, remaining, startDate, selectedDays, weeks, expiryBoundary])
+  }, [selectedPkgData, remaining, startDate, selectedDays, weeksValue, expiryBoundary])
 
   const willCreate = occurrences.length
 
@@ -157,7 +159,7 @@ export function SmartSessionPlanner({
     selectedDays.length > 0 &&
     !!startDate &&
     !!sessionTime &&
-    weeks > 0 &&
+    weeksValue > 0 &&
     willCreate > 0 &&
     !overLimit
 
@@ -175,7 +177,7 @@ export function SmartSessionPlanner({
           startDate,
           sessionTime,
           days: selectedDays,
-          weeks,
+          weeks: weeksValue,
         })
         toast.success(`Se programaron ${willCreate} sesiones`)
         router.refresh()
@@ -264,8 +266,19 @@ export function SmartSessionPlanner({
                 id="weeks"
                 type="number"
                 min={1}
-                value={weeks}
-                onChange={(e) => setWeeks(Math.max(1, Number(e.target.value) || 1))}
+                value={weeksInput}
+                placeholder="Valor mínimo 1"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                onKeyDown={(e) => {
+                  const allowed = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End']
+                  if (allowed.includes(e.key)) return
+                  if (!/^\d$/.test(e.key)) e.preventDefault()
+                }}
+                onChange={(e) => {
+                  const sanitized = e.target.value.replace(/\D+/g, '').slice(0, 4)
+                  setWeeksInput(sanitized)
+                }}
               />
             </div>
             <div className="grid gap-2">
