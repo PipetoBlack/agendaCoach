@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import Link from 'next/link'
-import { Eye, EyeOff, LockKeyhole } from 'lucide-react'
+import { Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react'
 
 const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,20}$/
 
@@ -73,6 +73,15 @@ function ResetPasswordContent() {
               <Button className="w-full" onClick={() => router.push('/auth/login')}>
                 Volver al inicio de sesión
               </Button>
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Mail className="h-4 w-4" />
+                <a
+                  className="underline hover:text-foreground"
+                  href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
+                >
+                  Soporte o sugerencias
+                </a>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -174,10 +183,19 @@ function ResetPasswordContent() {
               <Button type="submit" className="w-full" disabled={loading || submitting}>
                 {submitting ? 'Actualizando...' : 'Actualizar contraseña'}
               </Button>
-              <div className="text-center text-sm text-muted-foreground">
-                <Link href="/auth/login" className="text-primary underline underline-offset-4">
+              <div className="text-center text-sm text-muted-foreground space-y-2">
+                <Link href="/auth/login" className="text-primary underline underline-offset-4 block">
                   Volver a iniciar sesión
                 </Link>
+                <div className="flex items-center justify-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <a
+                    className="underline hover:text-foreground"
+                    href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
+                  >
+                    Soporte o sugerencias
+                  </a>
+                </div>
               </div>
             </form>
           </CardContent>
