@@ -33,9 +33,20 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
+  const getRecoveryCode = () => {
+    const searchCode = searchParams.get('code')
+    if (searchCode) return searchCode
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace(/^#/, '')
+      const hashParams = new URLSearchParams(hash)
+      return hashParams.get('code') || hashParams.get('token_hash') || null
+    }
+    return null
+  }
+
   useEffect(() => {
     const checkSession = async () => {
-      const code = searchParams.get('code')
+      const code = getRecoveryCode()
 
       if (code) {
         const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
