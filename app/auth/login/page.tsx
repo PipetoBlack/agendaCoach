@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { CalendarCheck, Eye, EyeOff } from 'lucide-react'
+import { CalendarCheck, Eye, EyeOff, Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -159,6 +159,15 @@ export default function LoginPage() {
               </form>
             </CardContent>
           </Card>
+        </div>
+        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Mail className="h-4 w-4" />
+          <a
+            className="underline hover:text-foreground"
+            href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
+          >
+            Soporte o sugerencias
+          </a>
         </div>
       </div>
     </div>
