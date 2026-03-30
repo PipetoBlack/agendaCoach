@@ -42,6 +42,11 @@ const navItems = [
     url: '/dashboard/sessions',
     icon: CalendarDays,
   },
+  {
+    title: 'Evaluación',
+    url: '/evaluacion',
+    icon: AlertCircle,
+  },
 ]
 
 const accountItem = {
