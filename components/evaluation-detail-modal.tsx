@@ -174,7 +174,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
 
           {/* 1) Anamnesis */}
           <section className="p-3 border rounded">
-            <h3 className="font-semibold mb-2">Anamnesis</h3>
+            <h3 className="font-semibold mb-2">Resumen</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-muted-foreground">Nombre</div>
@@ -191,6 +191,24 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
               <div>
                 <div className="text-muted-foreground">Género</div>
                 <div className="font-medium">{formatGenderLabel(clientGender)}</div>
+              </div>
+              <div className="col-span-2 mt-2">
+                <div className="text-muted-foreground">Objetivo general</div>
+                <div className="font-medium">{evaluation.objetivo ?? '—'}</div>
+
+                <div className="text-muted-foreground mt-2">Patologías</div>
+                <div>{evaluation.patologias ?? '—'}</div>
+
+                <div className="text-muted-foreground mt-2">Meta a 30 días</div>
+                <div>{evaluation.meta ?? '—'}</div>
+
+                <div className="text-muted-foreground mt-2">Tasa metabólica basal (OMS)</div>
+                <div>{(() => {
+                  const ageForBmr = age
+                  const weight = evaluation?.peso ?? null
+                  const bmr = computeBMR(weight, ageForBmr, clientGender)
+                  return bmr != null ? `${bmr} kcal/día` : '—'
+                })()}</div>
               </div>
             </div>
           </section>
@@ -282,21 +300,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
             </div>
           </section>
 
-          {/* 4) Otros */}
-          <section className="p-3 border rounded">
-            <h3 className="font-semibold mb-2">Otros</h3>
-            <div className="text-sm"><strong>Objetivo:</strong> {evaluation.objetivo ?? '—'}</div>
-            <div className="text-sm mt-1"><strong>Patologías:</strong> {evaluation.patologias ?? '—'}</div>
-            <div className="text-sm mt-1"><strong>Meta:</strong> {evaluation.meta ?? '—'}</div>
-            <div className="text-sm mt-2"><strong>Tasa metabólica basal (OMS):</strong> {
-              (() => {
-                const ageForBmr = age
-                const weight = evaluation?.peso ?? null
-                const bmr = computeBMR(weight, ageForBmr, clientGender)
-                return bmr != null ? `${bmr} kcal/día` : '—'
-              })()
-            }</div>
-          </section>
+          {/* Otros fusionados dentro de Anamnesis */}
 
           <div className="flex justify-end">
             <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
