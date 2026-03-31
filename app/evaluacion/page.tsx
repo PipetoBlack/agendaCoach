@@ -35,6 +35,7 @@ export default function EvaluacionPage() {
         .from('evaluaciones')
         .select('*')
         .order('fecha', { ascending: false })
+        .order('id', { ascending: false })
         .limit(3)
 
       if (error) {
@@ -49,7 +50,16 @@ export default function EvaluacionPage() {
         return
       }
 
-      setEvaluations(evals)
+      // Ensure evaluations are ordered by fecha desc (más recientes primero)
+      const sorted = [...evals].sort((a: any, b: any) => {
+        const da = a?.fecha ? new Date(a.fecha).getTime() : 0
+        const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+        if (db - da !== 0) return db - da
+        // tie-break by id (newer id first)
+        return (b.id ?? 0) - (a.id ?? 0)
+      })
+
+      setEvaluations(sorted)
 
       const clientIds = Array.from(new Set(evals.map((e: any) => e.cliente_id).filter(Boolean)))
       if (clientIds.length > 0) {
@@ -122,7 +132,12 @@ export default function EvaluacionPage() {
       {!loading && evaluations.length === 0 && <div className="text-sm text-muted-foreground">No hay evaluaciones registradas aún.</div>}
 
       <div className="grid grid-cols-1 gap-3">
-        {evaluations.map((ev: any) => (
+        {evaluations.slice().sort((a: any, b: any) => {
+          const da = a?.fecha ? new Date(a.fecha).getTime() : 0
+          const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+          if (db - da !== 0) return db - da
+          return (b.id ?? 0) - (a.id ?? 0)
+        }).map((ev: any) => (
           <EvaluationPreviewCard
             key={ev.id}
             evaluation={ev}

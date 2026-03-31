@@ -26,6 +26,7 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
           .gte('fecha', first)
           .lte('fecha', last)
           .order('fecha', { ascending: false })
+          .order('id', { ascending: false })
 
         if (error) {
           setItems([])
@@ -47,7 +48,16 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
           clients?.forEach((c: any) => (map[c.id] = c.nombre_completo))
         }
 
-        if (mounted) setItems(evals.map((ev: any) => ({ ...ev, clientName: map[ev.cliente_id] ?? '—' })))
+        if (mounted) {
+          // Ensure items are ordered by fecha desc
+          const sorted = [...evals].sort((a: any, b: any) => {
+            const da = a?.fecha ? new Date(a.fecha).getTime() : 0
+            const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+            if (db - da !== 0) return db - da
+            return (b.id ?? 0) - (a.id ?? 0)
+          })
+          setItems(sorted.map((ev: any) => ({ ...ev, clientName: map[ev.cliente_id] ?? '—' })))
+        }
       } catch (err) {
         setItems([])
       } finally {

@@ -16,12 +16,21 @@ export default async function HistorialPage() {
     .select('*')
     .in('cliente_id', clientIds)
     .order('fecha', { ascending: false })
+    .order('id', { ascending: false })
 
   const clientsMap: Record<string, string> = {}
   (clients || []).forEach((c: any) => (clientsMap[c.id] = c.nombre_completo))
 
+  // Ensure evaluations are sorted by fecha desc
+  const sortedEvals = (evaluations || []).slice().sort((a: any, b: any) => {
+      const da = a?.fecha ? new Date(a.fecha).getTime() : 0
+      const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+      if (db - da !== 0) return db - da
+      return (b.id ?? 0) - (a.id ?? 0)
+    })
+
   const grouped: Record<string, any[]> = {}
-  ;(evaluations || []).forEach((ev: any) => {
+  ;sortedEvals.forEach((ev: any) => {
     const d = ev.fecha ? new Date(ev.fecha) : new Date()
     const key = d.toLocaleString('es-ES', { month: 'long', year: 'numeric' })
     if (!grouped[key]) grouped[key] = []
