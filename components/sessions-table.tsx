@@ -25,6 +25,7 @@ import {
   updateSessionStatusAction,
   deleteSessionAction,
 } from '@/app/dashboard/sessions/actions'
+import { toTitleCase } from '@/lib/utils'
 
 interface Session {
   id: string
@@ -106,7 +107,7 @@ export function SessionsTable({ sessions }: { sessions: Session[] }) {
           {sessions.map((session) => (
             <TableRow key={session.id}>
               <TableCell className="font-medium text-foreground">
-                {session.clientes?.nombre_completo || 'Desconocido'}
+                {toTitleCase(session.clientes?.nombre_completo || 'Desconocido')}
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {format(parseISO(session.fecha_sesion), 'd MMM yyyy', { locale: es })}

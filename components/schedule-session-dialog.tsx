@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner'
 import { createSessionAction } from '@/app/dashboard/sessions/actions'
 import { CalendarPlus } from 'lucide-react'
+import { toTitleCase } from '@/lib/utils'
 
 interface Client {
   id: string
@@ -96,7 +97,7 @@ export function ScheduleSessionDialog({
                 <SelectContent>
                   {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.nombre_completo}
+                      {toTitleCase(c.nombre_completo)}
                     </SelectItem>
                   ))}
                 </SelectContent>

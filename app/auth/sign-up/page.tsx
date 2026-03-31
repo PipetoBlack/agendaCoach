@@ -37,7 +37,12 @@ export default function SignUpPage() {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,20}$/
 
-  const toTitle = (s: string) => s.toLowerCase().replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1)).trim()
+  const toTitle = (s: string) =>
+    s
+      .normalize('NFC')
+      .toLocaleLowerCase('es')
+      .replace(/\p{L}+/gu, (w) => w[0].toLocaleUpperCase('es') + w.slice(1))
+      .trim()
 
   const validateField = (field: string, value: string, helpers?: { password?: string }) => {
     const trimmed = value.trim()

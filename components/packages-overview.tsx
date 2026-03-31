@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { toTitleCase } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -48,7 +49,7 @@ export function PackagesOverview({ packages }: { packages: SessionPackage[] }) {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">
-                    {pkg.clientes?.nombre_completo || 'Sin nombre'}
+                    {toTitleCase(pkg.clientes?.nombre_completo || 'Sin nombre')}
                   </span>
                   <Badge variant={statusColors[pkg.estado] ?? 'secondary'}>
                     {pkg.estado === 'activo'

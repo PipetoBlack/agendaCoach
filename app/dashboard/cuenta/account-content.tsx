@@ -33,8 +33,9 @@ function splitName(nombreCompleto?: string | null) {
 
 function titleCase(value: string) {
   return value
-    .toLowerCase()
-    .replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .normalize('NFC')
+    .toLocaleLowerCase('es')
+    .replace(/\p{L}+/gu, (w) => w[0].toLocaleUpperCase('es') + w.slice(1))
     .trim()
 }
 

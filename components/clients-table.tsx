@@ -9,6 +9,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { EditClientButton } from '@/components/client-form-dialog'
 import { DeleteClientButton } from '@/components/delete-client-button'
+import { toTitleCase } from '@/lib/utils'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -67,7 +68,7 @@ export function ClientsTable({ clients }: { clients: Client[] }) {
           {clients.map((client) => (
             <TableRow key={client.id}>
               <TableCell className="font-medium text-foreground">
-                {client.nombre_completo}
+                {toTitleCase(client.nombre_completo)}
               </TableCell>
               <TableCell className="hidden md:table-cell text-muted-foreground">
                 {client.rut || '-'}
@@ -91,7 +92,7 @@ export function ClientsTable({ clients }: { clients: Client[] }) {
                   <EditClientButton client={client} />
                   <DeleteClientButton
                     clientId={client.id}
-                    clientName={client.nombre_completo}
+                    clientName={toTitleCase(client.nombre_completo)}
                   />
                 </div>
               </TableCell>

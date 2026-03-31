@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { toTitleCase } from '@/lib/utils'
 
 export type ExpiringPackageItem = {
   id: string
@@ -60,11 +61,11 @@ export function ExpiringPackagesCard({ packages, trigger }: { packages: Expiring
           <DialogTitle>Paquetes por vencer ({count})</DialogTitle>
         </DialogHeader>
         <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
-          {items.length === 0 ? (
+              {items.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay paquetes por vencer en la próxima semana.</p>
           ) : (
             items.map((p) => {
-              const nombre = p.clientes?.nombre_completo || 'Sin nombre'
+              const nombre = toTitleCase(p.clientes?.nombre_completo || 'Sin nombre')
               const pendientes = Math.max(p.sesiones_totales - p.sesiones_usadas, 0)
               const isExpired = new Date(p.fecha_expiracion).getTime() < Date.now()
               return (
