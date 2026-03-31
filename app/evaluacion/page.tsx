@@ -117,6 +117,9 @@ export default function EvaluacionPage() {
 
       <div className="flex items-center gap-4 mb-6">
         <Button onClick={() => setOpen(true)}>Crear evaluación</Button>
+        <Button variant="ghost" onClick={() => setShowMore(true)} className="text-emerald-700 bg-emerald-700/5 hover:bg-emerald-700/10">
+          Historial
+        </Button>
       </div>
 
       <EvaluationFormDialog open={open} onClose={() => { setOpen(false); setEditingEvaluation(null) }} evaluation={editingEvaluation} onSaved={() => { loadLatest(); setEditingEvaluation(null) }} />
@@ -149,9 +152,7 @@ export default function EvaluacionPage() {
         ))}
       </div>
 
-      <div className="mt-6">
-        <Button onClick={() => setShowMore(true)}>Ver más</Button>
-      </div>
+      
     </div>
   )
 }
