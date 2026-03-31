@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
@@ -13,7 +13,7 @@ type ClienteMin = {
   genero?: string | null
 }
 
-export default function EvaluationFormDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function EvaluationFormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved?: () => void }) {
   const [clienteId, setClienteId] = useState("");
   const [clientes, setClientes] = useState<ClienteMin[]>([]);
   const [loadingClientes, setLoadingClientes] = useState(false);
@@ -39,8 +39,14 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
     const d = new Date()
     return d.toISOString().slice(0, 10) // YYYY-MM-DD for date input
   })
+  // InBody-specific fields
+  const [masaMuscular, setMasaMuscular] = useState("");
+  const [masaGrasaKg, setMasaGrasaKg] = useState("");
+  const [aguaCorporalKg, setAguaCorporalKg] = useState("");
+  const [grasaVisceral, setGrasaVisceral] = useState("");
   const [resultados, setResultados] = useState<any | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
+  const [caliperInfo, setCaliperInfo] = useState<any | null>(null)
   const computeAge = (fecha?: string | null) => {
     if (!fecha) return '—'
     const born = new Date(fecha)
@@ -105,7 +111,7 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
   }
 
   function calculateCaliperPercentage(sumPliegues: number) {
-    if (!sumPliegues || sumPliegues <= 0) return null
+    if (!sumPliegues || sumPliegues <= 0) return { percent: null, info: { method: 'invalid', sum: sumPliegues } }
     // intenta usar Durnin & Womersley cuando exista cliente seleccionado con edad y genero
     const sel = clientes.find((c) => c.id === clienteId)
     const age = sel?.fecha_nacimiento ? computeAgeYears(sel.fecha_nacimiento) : null
@@ -117,25 +123,43 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
       const dens = coeff.a - coeff.b * Math.log10(sumPliegues)
       if (dens && isFinite(dens) && dens > 0) {
         const fat = (495 / dens) - 450
-        return Math.round(fat * 10) / 10
+        return { percent: Math.round(fat * 10) / 10, info: { method: 'Durnin & Womersley', dens: Math.round(dens * 1000) / 1000, a: coeff.a, b: coeff.b, age, gender, sum: sumPliegues } }
       }
     }
 
     // Fallback genérico (valor orientativo, mantengo la aproximación previa)
-    return Math.round((sumPliegues * 0.153 + 5.783) * 10) / 10
+    const fallback = Math.round((sumPliegues * 0.153 + 5.783) * 10) / 10
+    return { percent: fallback, info: { method: 'Estimación genérica', sum: sumPliegues } }
+  }
+
+  // Categoría de IMC según clasificaciones estándar (en español)
+  function getBMICategory(bmi?: number | null) {
+    if (bmi === null || bmi === undefined || isNaN(Number(bmi))) return null
+    const v = Number(bmi)
+    if (v < 18.5) return 'Bajo peso'
+    if (v < 25) return 'Normal'
+    if (v < 30) return 'Sobrepeso'
+    if (v < 35) return 'Obesidad I'
+    if (v < 40) return 'Obesidad II'
+    return 'Obesidad III'
   }
 
   function calcularResultados() {
     const errores: string[] = [];
     // Validaciones básicas
     if (!clienteId) errores.push("Selecciona un cliente");
+    // Fecha obligatoria
+    if (!fechaEvaluacion || isNaN(new Date(fechaEvaluacion).getTime())) errores.push("Fecha inválida");
     if (!objetivo) errores.push("El objetivo es obligatorio");
     if (!peso || isNaN(Number(peso)) || Number(peso) <= 0) errores.push("Peso inválido");
     if (!estatura || isNaN(Number(estatura)) || Number(estatura) <= 0) errores.push("Estatura inválida");
-    if (tipoMedicion === "InBody" && (!porcentajeGrasa || isNaN(Number(porcentajeGrasa)) || Number(porcentajeGrasa) < 0 || Number(porcentajeGrasa) > 100)) {
-      errores.push("% Grasa inválido");
-    }
-    if (tipoMedicion === "Caliper") {
+    // % Grasa obligatorio salvo que se use Caliper (se calcula desde pliegues)
+    if (tipoMedicion !== 'Caliper') {
+      if (!porcentajeGrasa || isNaN(Number(porcentajeGrasa)) || Number(porcentajeGrasa) < 0 || Number(porcentajeGrasa) > 100) {
+        errores.push("% Grasa inválido");
+      }
+    } else {
+      // si es Caliper, validar pliegues
       const plieguesVals = Object.values(pliegues).map(Number);
       if (plieguesVals.some((v) => isNaN(v) || v <= 0)) errores.push("Todos los pliegues deben ser mayores a 0");
     }
@@ -161,18 +185,22 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
     if (tipoMedicion === "Caliper") {
       const sumaPliegues = Object.values(pliegues).reduce((acc, v) => acc + Number(v || 0), 0);
       const calc = calculateCaliperPercentage(sumaPliegues)
-      porcentajeGrasaNum = calc ?? porcentajeGrasaNum
+      porcentajeGrasaNum = calc?.percent ?? porcentajeGrasaNum
+      setCaliperInfo(calc?.info || null)
     }
     let icc = null, ice = null;
     if (agregarPerimetros) {
       icc = Number(cintura) / Number(cadera);
       ice = Number(cintura) / Number(estatura);
     }
+    const imcRounded = Math.round(imc * 10) / 10
+    const categoria = getBMICategory(imcRounded)
     const resultadosLocal = {
-      imc: Math.round(imc * 10) / 10,
+      imc: imcRounded,
       porcentajeGrasa: porcentajeGrasaNum,
       icc: icc ? Math.round(icc * 100) / 100 : null,
       ice: ice ? Math.round(ice * 100) / 100 : null,
+      categoriaImc: categoria,
     }
     setErrores([]);
     setResultados(resultadosLocal);
@@ -184,6 +212,13 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
   function computeDerivedResults() {
     const pesoNum = Number(peso)
     const estaturaNum = Number(estatura) / 100
+
+    // Requisitos mínimos para mostrar resultados
+    if (!clienteId) { setResultados(null); return {} }
+    if (!fechaEvaluacion || isNaN(new Date(fechaEvaluacion).getTime())) { setResultados(null); return {} }
+    if (!objetivo) { setResultados(null); return {} }
+    if (!(pesoNum > 0) || !(estaturaNum > 0)) { setResultados(null); return {} }
+
     let imc = null
     if (pesoNum > 0 && estaturaNum > 0) imc = Math.round((pesoNum / (estaturaNum * estaturaNum)) * 10) / 10
 
@@ -192,13 +227,22 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
       const sumaPliegues = Object.values(pliegues).reduce((acc, v) => acc + Number(v || 0), 0)
       if (sumaPliegues > 0) {
         const calc = calculateCaliperPercentage(sumaPliegues)
-        if (calc !== null) {
-          porcentajeGrasaNum = calc
-          setPorcentajeGrasa(String(porcentajeGrasaNum))
-        }
+        porcentajeGrasaNum = calc?.percent ?? null
+        setPorcentajeGrasa(porcentajeGrasaNum !== null ? String(porcentajeGrasaNum) : '')
+        setCaliperInfo(calc?.info || null)
+      } else {
+        // pliegues incompletos -> no mostrar resultados
+        setResultados(null)
+        return {}
       }
-    } else if (porcentajeGrasa && !isNaN(Number(porcentajeGrasa))) {
-      porcentajeGrasaNum = Number(porcentajeGrasa)
+    } else {
+      if (porcentajeGrasa && !isNaN(Number(porcentajeGrasa))) {
+        porcentajeGrasaNum = Number(porcentajeGrasa)
+        setCaliperInfo(null)
+      } else {
+        setResultados(null)
+        return {}
+      }
     }
 
     let icc = null, ice = null
@@ -219,13 +263,17 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
       }
     }
 
+    const categoria = imc !== null ? getBMICategory(imc) : null
     const resultadosLocal: any = {
       ...(imc !== null ? { imc } : {}),
       ...(porcentajeGrasaNum !== null ? { porcentajeGrasa: porcentajeGrasaNum } : {}),
       ...(icc !== null ? { icc } : {}),
       ...(ice !== null ? { ice } : {}),
+      ...(categoria ? { categoriaImc: categoria } : {}),
     }
 
+    // limpiar errores de validación en vista previa en vivo
+    setErrores([])
     setResultados(resultadosLocal)
     return resultadosLocal
   }
@@ -236,13 +284,13 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
       computeDerivedResults()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pliegues.bicipital, pliegues.tricipital, pliegues.subescapular, pliegues.suprailiaco, tipoMedicion, peso, estatura, cintura, cadera, agregarPerimetros])
+  }, [pliegues.bicipital, pliegues.tricipital, pliegues.subescapular, pliegues.suprailiaco, tipoMedicion, peso, estatura, cintura, cadera, agregarPerimetros, clienteId, fechaEvaluacion, objetivo])
 
   // Update derived results for live preview when inputs change
   useEffect(() => {
     computeDerivedResults()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [peso, estatura, porcentajeGrasa, tipoMedicion, agregarPerimetros, cintura, cadera])
+  }, [peso, estatura, porcentajeGrasa, tipoMedicion, agregarPerimetros, cintura, cadera, clienteId, fechaEvaluacion, objetivo])
 
   useEffect(() => {
     let mounted = true
@@ -298,12 +346,17 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
         estatura: Number(estatura) || null,
         porcentaje_grasa: validation.resultados?.porcentajeGrasa ?? (porcentajeGrasa ? Number(porcentajeGrasa) : null),
         tipo_medicion: tipoMedicion || null,
+        masa_muscular: tipoMedicion === 'InBody' ? (masaMuscular ? Number(masaMuscular) : null) : null,
+        masa_grasa: tipoMedicion === 'InBody' ? (masaGrasaKg ? Number(masaGrasaKg) : null) : null,
+        agua_corporal: tipoMedicion === 'InBody' ? (aguaCorporalKg ? Number(aguaCorporalKg) : null) : null,
+        grasa_visceral: tipoMedicion === 'InBody' ? (grasaVisceral ? Number(grasaVisceral) : null) : null,
         pliegues: tipoMedicion === 'Caliper' ? pliegues : null,
         cintura: agregarPerimetros ? (cintura ? Number(cintura) : null) : null,
         cadera: agregarPerimetros ? (cadera ? Number(cadera) : null) : null,
         icc: validation.resultados?.icc ?? null,
         ice: validation.resultados?.ice ?? null,
         imc: validation.resultados?.imc ?? null,
+        categoria_imc: validation.resultados?.categoriaImc ?? (validation.resultados?.imc ? getBMICategory(validation.resultados.imc) : null),
         meta: meta || null,
       }
 
@@ -316,6 +369,9 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
       }
 
       toast.success('Evaluación guardada')
+      if (onSaved) {
+        try { onSaved() } catch {}
+      }
       onClose()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error guardando evaluación'
@@ -328,17 +384,18 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
+        <DialogTitle>Nueva evaluación</DialogTitle>
         <div className="space-y-3">
           {/* Selección de cliente */}
           <div className="grid gap-2">
-            <label>Cliente</label>
+            <label className="block text-sm font-medium mb-1">Cliente *</label>
             <Select value={clienteId} onValueChange={setClienteId}>
               <SelectTrigger>
                 <SelectValue placeholder={loadingClientes ? 'Cargando...' : 'Selecciona un cliente'} />
               </SelectTrigger>
               <SelectContent>
                 {clientes.length === 0 ? (
-                  <SelectItem value="">{loadingClientes ? 'Cargando clientes...' : 'No hay clientes'}</SelectItem>
+                  <SelectItem value="__no_client" disabled>{loadingClientes ? 'Cargando clientes...' : 'No hay clientes'}</SelectItem>
                 ) : (
                   clientes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
@@ -364,15 +421,15 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
           </div>
 
           {/* Fecha de evaluación */}
-          <label>Fecha de evaluación</label>
+          <label className="block text-sm font-medium mb-1">Fecha de evaluación *</label>
           <Input type="date" value={fechaEvaluacion} onChange={e => setFechaEvaluacion(e.target.value)} />
 
           {/* Objetivo */}
-          <label>Objetivo</label>
+          <label className="block text-sm font-medium mb-1">Objetivo general *</label>
           <Input value={objetivo} onChange={e => setObjetivo(e.target.value)} maxLength={100} placeholder="Ej: bajar grasa, fuerza..." />
 
           {/* Patologías */}
-          <label>¿Patologías?</label>
+          <label className="block text-sm font-medium mb-1">¿Patologías?</label>
           <div className="flex gap-2">
             <Button variant={tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(true)}>Sí</Button>
             <Button variant={!tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(false)}>No</Button>
@@ -382,18 +439,18 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
           )}
 
           {/* Datos antropométricos */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label>Peso (kg)</label>
+              <label className="block text-sm font-medium mb-1">Peso (kg) *</label>
               <Input type="number" value={peso} onChange={e => setPeso(e.target.value)} maxLength={3} min={0} />
             </div>
             <div>
-              <label>Estatura (cm)</label>
+              <label className="block text-sm font-medium mb-1">Estatura (cm) *</label>
               <Input type="number" value={estatura} onChange={e => setEstatura(e.target.value)} maxLength={3} min={0} />
             </div>
           </div>
 
-          <label>Método de evaluación corporal</label>
+          <label className="block text-sm font-medium mb-1">Métrica corporal</label>
           <Select value={tipoMedicion} onValueChange={setTipoMedicion}>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona" />
@@ -404,36 +461,80 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
             </SelectContent>
           </Select>
 
-          <label>% Grasa</label>
+          <label className="block text-sm font-medium mb-1">% Grasa *</label>
           <Input type="number" value={porcentajeGrasa} onChange={e => setPorcentajeGrasa(e.target.value)} min={0} max={100} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
 
-          {/* Pliegues si Caliper */}
-          {tipoMedicion === "Caliper" && (
-            <div className="grid grid-cols-2 gap-2">
-              <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => setPliegues({ ...pliegues, bicipital: e.target.value })} />
-              <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => setPliegues({ ...pliegues, tricipital: e.target.value })} />
-              <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => setPliegues({ ...pliegues, subescapular: e.target.value })} />
-              <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => setPliegues({ ...pliegues, suprailiaco: e.target.value })} />
+          {/* Info del cálculo Caliper */}
+          {tipoMedicion === 'Caliper' && caliperInfo && (
+            <div className="text-xs text-muted-foreground mt-1">
+              <div><b>Método:</b> {caliperInfo.method || caliperInfo.method}</div>
+              <div>Suma pliegues: {caliperInfo.sum ?? '-'} mm</div>
+              {caliperInfo.dens !== undefined && <div>Densidad: {caliperInfo.dens}</div>}
+              {caliperInfo.age !== undefined && caliperInfo.gender && (
+                <div>Edad: {caliperInfo.age ?? '-'} años | Sexo: {caliperInfo.gender}</div>
+              )}
             </div>
           )}
 
+          {/* Campos InBody */}
+          {tipoMedicion === 'InBody' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label>Masa muscular (kg)</label>
+                <Input type="number" value={masaMuscular} onChange={e => setMasaMuscular(e.target.value)} />
+              </div>
+              <div>
+                <label>Masa grasa (kg)</label>
+                <Input type="number" value={masaGrasaKg} onChange={e => setMasaGrasaKg(e.target.value)} />
+              </div>
+              <div>
+                <label>Agua corporal (L)</label>
+                <Input type="number" value={aguaCorporalKg} onChange={e => setAguaCorporalKg(e.target.value)} />
+              </div>
+              <div>
+                <label>Grasa visceral (nivel)</label>
+                <Input type="number" value={grasaVisceral} onChange={e => setGrasaVisceral(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {/* Pliegues si Caliper */}
+          {tipoMedicion === "Caliper" && (
+            <>
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="text-sm font-semibold">Densidad Corporal</div>
+                  <div className="text-xs text-muted-foreground">Durnin &amp; Womersley</div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => setPliegues({ ...pliegues, bicipital: e.target.value })} />
+                <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => setPliegues({ ...pliegues, tricipital: e.target.value })} />
+                <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => setPliegues({ ...pliegues, subescapular: e.target.value })} />
+                <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => setPliegues({ ...pliegues, suprailiaco: e.target.value })} />
+              </div>
+            </>
+          )}
+
           {/* Perímetros */}
-          <label>¿Agregar perímetros?</label>
+          <label>¿Añadir mediciones de circunferencia?</label>
           <div className="flex gap-2">
             <Button variant={agregarPerimetros ? "default" : "outline"} onClick={() => setAgregarPerimetros(true)}>Sí</Button>
             <Button variant={!agregarPerimetros ? "default" : "outline"} onClick={() => setAgregarPerimetros(false)}>No</Button>
           </div>
           {agregarPerimetros && (
-            <>
-              <label>Cintura (cm)</label>
-              <Input type="number" value={cintura} onChange={e => setCintura(e.target.value)} />
-              <label>Cadera (cm)</label>
-              <Input type="number" value={cadera} onChange={e => setCadera(e.target.value)} />
-            </>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label>Cintura (cm)</label>
+                <Input type="number" value={cintura} onChange={e => setCintura(e.target.value)} />
+              </div>
+              <div>
+                <label>Cadera (cm)</label>
+                <Input type="number" value={cadera} onChange={e => setCadera(e.target.value)} />
+              </div>
+            </div>
           )}
 
           {/* Meta */}
-          <label>Meta (opcional)</label>
+          <label>Meta a corto plazo</label>
           <Input value={meta} onChange={e => setMeta(e.target.value)} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
 
           {/* Mostrar errores */}
@@ -446,11 +547,14 @@ export default function EvaluationFormDialog({ open, onClose }: { open: boolean;
           {/* Mostrar resultados solo si existen y no hay errores */}
           {resultados && errores.length === 0 && (
             <div className="mt-4 p-4 border rounded bg-muted">
-              <div><b>Resultados:</b></div>
-              <div>IMC: {resultados.imc}</div>
-              <div>% Grasa: {resultados.porcentajeGrasa}</div>
-              {resultados.icc !== null && <div>ICC: {resultados.icc}</div>}
-              {resultados.ice !== null && <div>ICE: {resultados.ice}</div>}
+              <div><b>Análisis general:</b></div>
+              <div>Índice de masa corporal: {resultados.imc}</div>
+              {resultados.categoriaImc && (
+                <>
+                  <div>Categoría: {resultados.categoriaImc}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Para ver el detalle completo, finaliza la evaluación.</div>
+                </>
+              )}
             </div>
           )}
 
