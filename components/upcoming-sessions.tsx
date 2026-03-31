@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { CalendarDays, Clock } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { toTitleCase } from '@/lib/utils'
 
 interface UpcomingSession {
   id: string
@@ -37,8 +38,8 @@ export function UpcomingSessions({ sessions }: { sessions: UpcomingSession[] }) 
                     <CalendarDays className="h-5 w-5 text-accent-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {session.clientes?.nombre_completo || 'Cliente desconocido'}
+                      <p className="text-sm font-medium text-foreground">
+                      {toTitleCase(session.clientes?.nombre_completo || 'Cliente desconocido')}
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{format(parseISO(session.fecha_sesion), 'd MMM yyyy', { locale: es })}</span>

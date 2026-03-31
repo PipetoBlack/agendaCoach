@@ -45,7 +45,11 @@ export async function createClientAction(formData: FormData) {
     throw new Error('Correo inválido')
   }
 
-  const toTitle = (s: string) => s.toLowerCase().replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1))
+  const toTitle = (s: string) =>
+    s
+      .normalize('NFC')
+      .toLocaleLowerCase('es')
+      .replace(/\p{L}+/gu, (word) => word[0].toLocaleUpperCase('es') + word.slice(1))
   const nombreCompleto = `${toTitle(firstName)} ${toTitle(lastName)}`.trim()
 
   const { error } = await supabase.from('clientes').insert({
@@ -107,7 +111,11 @@ export async function updateClientAction(formData: FormData) {
     throw new Error('Correo inválido')
   }
 
-  const toTitle = (s: string) => s.toLowerCase().replace(/\b\w+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1))
+  const toTitle = (s: string) =>
+    s
+      .normalize('NFC')
+      .toLocaleLowerCase('es')
+      .replace(/\p{L}+/gu, (word) => word[0].toLocaleUpperCase('es') + word.slice(1))
   const nombreCompleto = `${toTitle(firstName)} ${toTitle(lastName)}`.trim()
   const { error } = await supabase
     .from('clientes')

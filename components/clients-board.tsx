@@ -38,6 +38,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { toTitleCase } from '@/lib/utils'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -267,7 +268,7 @@ export function ClientsBoard({
                     <div className="space-y-1">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-foreground">{cliente.nombre_completo}</span>
+                        <span className="text-foreground">{toTitleCase(cliente.nombre_completo)}</span>
                       </CardTitle>
                       <div className="flex flex-wrap items-center gap-2">
                         {estadoActivoInfo && <Badge variant={estadoActivoInfo.variant}>{estadoActivoInfo.label}</Badge>}
@@ -281,7 +282,7 @@ export function ClientsBoard({
                     </div>
                     <div className="flex items-center gap-1">
                       <EditClientButton client={cliente} />
-                      <DeleteClientButton clientId={cliente.id} clientName={cliente.nombre_completo} />
+                      <DeleteClientButton clientId={cliente.id} clientName={toTitleCase(cliente.nombre_completo)} />
                     </div>
                   </div>
                 </CardHeader>
@@ -556,7 +557,7 @@ export function ClientDetailDialog({
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-3xl sm:w-full max-h-[90vh] overflow-y-auto p-4">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-xl capitalize">{cliente.nombre_completo}</DialogTitle>
+          <DialogTitle className="text-xl">{toTitleCase(cliente.nombre_completo)}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 pr-1">

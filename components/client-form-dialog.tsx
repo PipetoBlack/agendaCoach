@@ -27,6 +27,7 @@ import { toast } from 'sonner'
 import { createClientAction, updateClientAction } from '@/app/dashboard/clients/actions'
 import { Plus, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toTitleCase } from '@/lib/utils'
 
 interface Client {
   id: string
@@ -53,7 +54,7 @@ export function ClientFormDialog({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [defaultFirstName, defaultLastName] = React.useMemo(() => {
     if (!client?.nombre_completo) return ['', '']
-    const parts = client.nombre_completo.trim().split(/\s+/)
+    const parts = toTitleCase(client.nombre_completo).trim().split(/\s+/)
     if (parts.length === 1) return [parts[0], '']
     return [parts[0], parts.slice(1).join(' ')]
   }, [client?.nombre_completo])
