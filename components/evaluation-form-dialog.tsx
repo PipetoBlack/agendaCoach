@@ -537,8 +537,13 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
-        <DialogTitle>{isEditing ? 'Editar evaluación' : 'Nueva evaluación'}</DialogTitle>
-        <div className="space-y-3">
+        <DialogTitle>
+          <div className="flex items-center justify-center">
+            <h3 className="text-lg font-semibold text-center">{isEditing ? 'Editar evaluación' : 'Nueva evaluación'}</h3>
+          </div>
+        </DialogTitle>
+        <div className="space-y-4 p-4 max-h-[70vh] overflow-auto">
+          <div className="text-sm font-medium text-center text-muted-foreground mb-2">Rellena los datos para crear o editar la evaluación</div>
           {/* Selección de cliente */}
           <div className="grid gap-2">
             <label className="block text-sm font-medium mb-1">Cliente *</label>
@@ -592,6 +597,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           )}
 
           {/* Datos antropométricos */}
+          <div className="text-sm font-semibold">Datos antropométricos</div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Peso (kg) *</label>
