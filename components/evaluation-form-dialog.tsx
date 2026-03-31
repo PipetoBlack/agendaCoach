@@ -639,19 +639,19 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           {tipoMedicion === 'InBody' && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label>Masa muscular (kg)</label>
+                <label className="block text-sm font-medium mb-1">Masa muscular (kg)</label>
                 <Input type="number" value={masaMuscular} onChange={e => { setMasaMuscular(e.target.value); setMasaMuscularAuto(false); markDirty('masa_muscular') }} />
               </div>
               <div>
-                <label>Masa grasa (kg)</label>
+                <label className="block text-sm font-medium mb-1">Masa grasa (kg)</label>
                 <Input type="number" value={masaGrasaKg} onChange={e => { setMasaGrasaKg(e.target.value); setMasaGrasaAuto(false); markDirty('masa_grasa') }} />
               </div>
               <div>
-                <label>Agua corporal (L)</label>
+                <label className="block text-sm font-medium mb-1">Agua corporal (L)</label>
                 <Input type="number" value={aguaCorporalKg} onChange={e => { setAguaCorporalKg(e.target.value); markDirty('agua_corporal') }} />
               </div>
               <div>
-                <label>Grasa visceral (nivel)</label>
+                <label className="block text-sm font-medium mb-1">Grasa visceral (nivel)</label>
                 <Input type="number" value={grasaVisceral} onChange={e => { setGrasaVisceral(e.target.value); markDirty('grasa_visceral') }} />
               </div>
             </div>
@@ -661,7 +661,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           {tipoMedicion === "Caliper" && (
             <>
                 <div className="mt-2 flex items-baseline justify-between">
-                  <div className="text-sm font-semibold">Densidad Corporal</div>
+                  <div className="text-sm font-semibold">Densidad corporal</div>
                   <div className="text-xs text-muted-foreground">Durnin &amp; Womersley</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-3">
@@ -674,7 +674,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           )}
 
           {/* Perímetros */}
-          <label>¿Añadir mediciones de circunferencia?</label>
+          <label className="block text-sm font-medium mb-1">¿Añadir mediciones de circunferencia?</label>
             <div className="flex gap-2">
             <Button variant={agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(true); markDirty('agregar_perimetros') }}>Sí</Button>
             <Button variant={!agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(false); markDirty('agregar_perimetros') }}>No</Button>
@@ -682,18 +682,18 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           {agregarPerimetros && (
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label>Cintura (cm)</label>
+                <label className="block text-sm font-medium mb-1">Cintura (cm)</label>
                 <Input type="number" value={cintura} onChange={e => { setCintura(e.target.value); markDirty('cintura') }} />
               </div>
               <div>
-                <label>Cadera (cm)</label>
+                <label className="block text-sm font-medium mb-1">Cadera (cm)</label>
                 <Input type="number" value={cadera} onChange={e => { setCadera(e.target.value); markDirty('cadera') }} />
               </div>
             </div>
           )}
 
           {/* Meta */}
-          <label>Meta a corto plazo</label>
+          <label className="block text-sm font-medium mb-1">Meta a corto plazo</label>
           <Input value={meta} onChange={e => { setMeta(e.target.value); markDirty('meta') }} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
 
           {/* Mostrar errores */}
