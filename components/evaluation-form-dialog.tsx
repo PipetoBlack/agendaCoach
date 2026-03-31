@@ -366,20 +366,8 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peso, estatura, porcentajeGrasa, tipoMedicion, agregarPerimetros, cintura, cadera, clienteId, fechaEvaluacion, objetivo])
 
-  // Auto-estimate masa grasa (kg) and masa muscular (kg) for InBody when peso and % grasa are provided.
-  // Respect manual edits: if the user has changed a field, we stop auto-updating that field.
-  useEffect(() => {
-    if (tipoMedicion !== 'InBody') return
-    const p = Number(peso)
-    const pct = Number(porcentajeGrasa)
-    if (!(p > 0) || isNaN(pct) || pct < 0) return
-
-    const fatKg = Math.round((p * (pct / 100)) * 10) / 10
-    const muscleKg = Math.round((p - fatKg) * 10) / 10
-
-    if (masaGrasaAuto) setMasaGrasaKg(String(fatKg))
-    if (masaMuscularAuto) setMasaMuscular(String(muscleKg))
-  }, [peso, porcentajeGrasa, tipoMedicion, masaGrasaAuto, masaMuscularAuto])
+  // Nota: se ha eliminado el autocompletado automático de
+  // masa grasa y masa muscular para requerir ingreso manual.
 
   useEffect(() => {
     let mounted = true
@@ -461,17 +449,8 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           payload.porcentaje_grasa = calc.percent ?? payload.porcentaje_grasa ?? null
         }
 
-        // Auto-update masa fields only if user did not manually edit them
-        if ((dirtyFields['peso'] || dirtyFields['porcentaje_grasa']) && !dirtyFields['masa_grasa'] && !dirtyFields['masa_muscular']) {
-          const p = Number(peso)
-          const pct = Number(porcentajeGrasa)
-          if (!isNaN(p) && !isNaN(pct)) {
-            const fatKg = Math.round((p * (pct / 100)) * 10) / 10
-            const muscleKg = Math.round((p - fatKg) * 10) / 10
-            if (masaGrasaAuto) payload.masa_grasa = fatKg
-            if (masaMuscularAuto) payload.masa_muscular = muscleKg
-          }
-        }
+        // No se realiza autocompletado de masa al guardar en edición;
+        // los campos `masa_muscular` y `masa_grasa` deben ingresarse manualmente.
 
         // Recompute icc/ice if perimeters or estatura changed
         if (dirtyFields['cintura'] || dirtyFields['cadera'] || dirtyFields['estatura']) {
