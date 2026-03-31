@@ -17,6 +17,7 @@ export default function EvaluacionPage() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<any | null>(null)
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null)
   const [selectedClientGender, setSelectedClientGender] = useState<string | undefined>(undefined)
+  const [selectedClientBirthdate, setSelectedClientBirthdate] = useState<string | undefined>(undefined)
   const [editingEvaluation, setEditingEvaluation] = useState<any | null>(null)
   const [showMore, setShowMore] = useState(false)
 
@@ -125,10 +126,10 @@ export default function EvaluacionPage() {
       <EvaluationFormDialog open={open} onClose={() => { setOpen(false); setEditingEvaluation(null) }} evaluation={editingEvaluation} onSaved={() => { loadLatest(); setEditingEvaluation(null) }} />
 
       {/* Detail modal */}
-      <EvaluationDetailModal open={!!selectedEvaluation} onOpenChange={(v) => { if (!v) setSelectedEvaluation(null); else {/*noop*/} }} evaluation={selectedEvaluation} clientName={selectedClientName} clientGender={selectedClientGender} />
+      <EvaluationDetailModal open={!!selectedEvaluation} onOpenChange={(v) => { if (!v) setSelectedEvaluation(null); else {/*noop*/} }} evaluation={selectedEvaluation} clientName={selectedClientName} clientGender={selectedClientGender} clientBirthdate={selectedClientBirthdate} />
 
       {/* More modal */}
-      <MoreEvaluationsModal open={showMore} onOpenChange={(v) => setShowMore(v)} onSelect={(ev) => { setSelectedEvaluation(ev); setSelectedClientName(clientsMap[ev.cliente_id]?.name ?? '—'); setShowMore(false) }} />
+      <MoreEvaluationsModal open={showMore} onOpenChange={(v) => setShowMore(v)} onSelect={(ev) => { setSelectedEvaluation(ev); setSelectedClientName(clientsMap[ev.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[ev.cliente_id]?.genero ?? undefined); setSelectedClientBirthdate(clientsMap[ev.cliente_id]?.fecha_nacimiento ?? undefined); setShowMore(false) }} />
 
       <h2 className="text-lg font-semibold mb-3">Últimas 3 evaluaciones ingresadas</h2>
       {loading && <div>Cargando...</div>}
@@ -141,11 +142,11 @@ export default function EvaluacionPage() {
           if (db - da !== 0) return db - da
           return (b.id ?? 0) - (a.id ?? 0)
         }).map((ev: any) => (
-          <EvaluationPreviewCard
+            <EvaluationPreviewCard
             key={ev.id}
             evaluation={ev}
             clientName={clientsMap[ev.cliente_id]?.name ?? '—'}
-            onView={(e) => { setSelectedEvaluation(e); setSelectedClientName(clientsMap[e.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[e.cliente_id]?.genero ?? undefined) }}
+            onView={(e) => { setSelectedEvaluation(e); setSelectedClientName(clientsMap[e.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[e.cliente_id]?.genero ?? undefined); setSelectedClientBirthdate(clientsMap[e.cliente_id]?.fecha_nacimiento ?? undefined) }}
             onEdit={(e) => { setEditingEvaluation(e); setOpen(true) }}
             onDelete={handleDelete}
           />

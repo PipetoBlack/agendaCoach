@@ -70,7 +70,7 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
           <div><strong>IMC:</strong> {evaluation?.imc ?? '—'}</div>
           <div className={`px-1.5 py-0.5 rounded-full text-xs ${badgeClass}`}>{categoria || '—'}</div>
         </div>
-        <div className="mt-2"><strong>Mensaje:</strong> {evaluation?.nota_corta ?? '—'}</div>
+        <div className="mt-2"><strong>Objetivo:</strong> {evaluation?.objetivo ?? '—'}</div>
       </div>
     </div>
   )
