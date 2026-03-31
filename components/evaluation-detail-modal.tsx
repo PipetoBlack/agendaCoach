@@ -168,20 +168,9 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogTitle>Ficha de evaluación</DialogTitle>
+        <DialogTitle className="text-center">Ficha de evaluación</DialogTitle>
 
         <div className="space-y-3">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-lg font-semibold">{clientName ?? '—'}</div>
-              <div className="text-xs text-muted-foreground">{fecha}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`px-3 py-1 rounded text-sm ${imcColor(categoria)}`}>{categoria ?? '—'}</div>
-              <div className={`px-3 py-1 rounded text-sm ${fatCat.color}`}>{fatCat.label}{fat != null ? ` · ${fat}%` : ''}</div>
-              <div className={`px-3 py-1 rounded text-sm ${viscCat.color}`}>Visceral: {viscCat.label}</div>
-            </div>
-          </div>
 
           {/* 1) Anamnesis */}
           <section className="p-3 border rounded">
@@ -194,10 +183,6 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
               <div>
                 <div className="text-muted-foreground">Fecha evaluación</div>
                 <div className="font-medium">{fecha}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Fecha de nacimiento</div>
-                <div>{clientBirthdate ? new Date(clientBirthdate).toLocaleDateString('es-ES') : '—'}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Edad</div>
