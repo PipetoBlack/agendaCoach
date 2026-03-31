@@ -6,6 +6,7 @@ import EvaluationPreviewCard from '@/components/evaluation-preview-card'
 import EvaluationDetailModal from '@/components/evaluation-detail-modal'
 import MoreEvaluationsModal from '@/components/more-evaluations-modal'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 export default function EvaluacionPage() {
   const [open, setOpen] = useState(false)
@@ -16,6 +17,7 @@ export default function EvaluacionPage() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<any | null>(null)
   const [selectedClientName, setSelectedClientName] = useState<string | null>(null)
   const [selectedClientGender, setSelectedClientGender] = useState<string | undefined>(undefined)
+  const [editingEvaluation, setEditingEvaluation] = useState<any | null>(null)
   const [showMore, setShowMore] = useState(false)
 
   async function loadLatest() {
@@ -67,6 +69,26 @@ export default function EvaluacionPage() {
     }
   }
 
+  async function handleDelete(evaluation: any) {
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('evaluaciones').delete().eq('id', evaluation.id)
+      if (error) {
+        toast.error(error.message)
+        setLoading(false)
+        return
+      }
+      toast.success('Evaluación eliminada')
+      if (selectedEvaluation?.id === evaluation.id) setSelectedEvaluation(null)
+      await loadLatest()
+    } catch (err: any) {
+      toast.error(err?.message ?? String(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     let mounted = true
     // call loadLatest on mount
@@ -77,17 +99,17 @@ export default function EvaluacionPage() {
   }, [])
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Análisis de composición corporal</h1>
-        <p className="text-sm text-muted-foreground mt-2">Aquí podrás crear y registrar evaluaciones para tus clientes, seguir su progreso y guardar resultados clave (IMC, masa muscular, grasa visceral, agua corporal, perímetros, etc.). Finaliza la evaluación para guardar los resultados y ver el detalle completo.</p>
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold">Evaluación de composición corporal</h1>
+        <p className="text-sm text-muted-foreground mt-1">Registra fácilmente los datos clave de tus alumnos: IMC, masa muscular, grasa visceral, agua corporal y perímetros. Al finalizar, guarda la evaluación para llevar un seguimiento completo de su progreso.</p>
       </div>
 
       <div className="flex items-center gap-4 mb-6">
         <Button onClick={() => setOpen(true)}>Crear evaluación</Button>
       </div>
 
-      <EvaluationFormDialog open={open} onClose={() => setOpen(false)} onSaved={() => loadLatest()} />
+      <EvaluationFormDialog open={open} onClose={() => { setOpen(false); setEditingEvaluation(null) }} evaluation={editingEvaluation} onSaved={() => { loadLatest(); setEditingEvaluation(null) }} />
 
       {/* Detail modal */}
       <EvaluationDetailModal open={!!selectedEvaluation} onOpenChange={(v) => { if (!v) setSelectedEvaluation(null); else {/*noop*/} }} evaluation={selectedEvaluation} clientName={selectedClientName} clientGender={selectedClientGender} />
@@ -101,7 +123,14 @@ export default function EvaluacionPage() {
 
       <div className="grid grid-cols-1 gap-3">
         {evaluations.map((ev: any) => (
-          <EvaluationPreviewCard key={ev.id} evaluation={ev} clientName={clientsMap[ev.cliente_id]?.name ?? '—'} onView={(e) => { setSelectedEvaluation(e); setSelectedClientName(clientsMap[e.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[e.cliente_id]?.genero ?? undefined) }} />
+          <EvaluationPreviewCard
+            key={ev.id}
+            evaluation={ev}
+            clientName={clientsMap[ev.cliente_id]?.name ?? '—'}
+            onView={(e) => { setSelectedEvaluation(e); setSelectedClientName(clientsMap[e.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[e.cliente_id]?.genero ?? undefined) }}
+            onEdit={(e) => { setEditingEvaluation(e); setOpen(true) }}
+            onDelete={handleDelete}
+          />
         ))}
       </div>
 

@@ -13,7 +13,7 @@ type ClienteMin = {
   genero?: string | null
 }
 
-export default function EvaluationFormDialog({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved?: () => void }) {
+export default function EvaluationFormDialog({ open, onClose, onSaved, evaluation }: { open: boolean; onClose: () => void; onSaved?: () => void; evaluation?: any }) {
   const [clienteId, setClienteId] = useState("");
   const [clientes, setClientes] = useState<ClienteMin[]>([]);
   const [loadingClientes, setLoadingClientes] = useState(false);
@@ -44,6 +44,10 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
   const [masaGrasaKg, setMasaGrasaKg] = useState("");
   const [aguaCorporalKg, setAguaCorporalKg] = useState("");
   const [grasaVisceral, setGrasaVisceral] = useState("");
+  const [masaMuscularAuto, setMasaMuscularAuto] = useState(true);
+  const [masaGrasaAuto, setMasaGrasaAuto] = useState(true);
+  const [dirtyFields, setDirtyFields] = useState<Record<string, boolean>>({})
+  const isEditing = !!evaluation
   const [resultados, setResultados] = useState<any | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
   const [caliperInfo, setCaliperInfo] = useState<any | null>(null)
@@ -207,6 +211,76 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
     return { valid: true, resultados: resultadosLocal };
   }
 
+  function markDirty(field: string) {
+    setDirtyFields((s) => ({ ...(s || {}), [field]: true }))
+  }
+
+  // when opening for edit, prefill fields from evaluation
+  useEffect(() => {
+    if (!open) return
+    if (evaluation) {
+      setClienteId(evaluation.cliente_id ?? "")
+      setFechaEvaluacion(evaluation.fecha ? new Date(evaluation.fecha).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
+      setObjetivo(evaluation.objetivo ?? "")
+      setPatologias(evaluation.patologias ?? "")
+      setTienePatologias(!!evaluation.patologias)
+      setPeso(evaluation.peso != null ? String(evaluation.peso) : "")
+      setEstatura(evaluation.estatura != null ? String(evaluation.estatura) : "")
+      setTipoMedicion(evaluation.tipo_medicion ?? "")
+      setPorcentajeGrasa(evaluation.porcentaje_grasa != null ? String(evaluation.porcentaje_grasa) : "")
+      setPliegues({
+        bicipital: evaluation.pliegues?.bicipital != null ? String(evaluation.pliegues.bicipital) : "",
+        tricipital: evaluation.pliegues?.tricipital != null ? String(evaluation.pliegues.tricipital) : "",
+        subescapular: evaluation.pliegues?.subescapular != null ? String(evaluation.pliegues.subescapular) : "",
+        suprailiaco: evaluation.pliegues?.suprailiaco != null ? String(evaluation.pliegues.suprailiaco) : "",
+      })
+      setAgregarPerimetros(!!(evaluation.cintura || evaluation.cadera))
+      setCintura(evaluation.cintura != null ? String(evaluation.cintura) : "")
+      setCadera(evaluation.cadera != null ? String(evaluation.cadera) : "")
+      setMeta(evaluation.meta ?? "")
+      setMasaMuscular(evaluation.masa_muscular != null ? String(evaluation.masa_muscular) : "")
+      setMasaGrasaKg(evaluation.masa_grasa != null ? String(evaluation.masa_grasa) : "")
+      setAguaCorporalKg(evaluation.agua_corporal != null ? String(evaluation.agua_corporal) : "")
+      setGrasaVisceral(evaluation.grasa_visceral != null ? String(evaluation.grasa_visceral) : "")
+      setMasaMuscularAuto(evaluation.masa_muscular == null)
+      setMasaGrasaAuto(evaluation.masa_grasa == null)
+      setDirtyFields({})
+      setErrores([])
+      setResultados({
+        imc: evaluation.imc ?? null,
+        porcentajeGrasa: evaluation.porcentaje_grasa ?? null,
+        icc: evaluation.icc ?? null,
+        ice: evaluation.ice ?? null,
+        categoriaImc: evaluation.categoria_imc ?? null,
+      })
+    } else {
+      // new evaluation -> reset fields
+      setClienteId("")
+      setObjetivo("")
+      setPatologias("")
+      setTienePatologias(false)
+      setPeso("")
+      setEstatura("")
+      setPorcentajeGrasa("")
+      setTipoMedicion("")
+      setPliegues({ bicipital: "", tricipital: "", subescapular: "", suprailiaco: "" })
+      setAgregarPerimetros(false)
+      setCintura("")
+      setCadera("")
+      setMeta("")
+      setMasaMuscular("")
+      setMasaGrasaKg("")
+      setAguaCorporalKg("")
+      setGrasaVisceral("")
+      setMasaMuscularAuto(true)
+      setMasaGrasaAuto(true)
+      setDirtyFields({})
+      setErrores([])
+      setResultados(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, evaluation])
+
   // Compute derived results without running full validation (used for live preview
   // and for auto-filling % grasa when using Caliper)
   function computeDerivedResults() {
@@ -292,6 +366,21 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peso, estatura, porcentajeGrasa, tipoMedicion, agregarPerimetros, cintura, cadera, clienteId, fechaEvaluacion, objetivo])
 
+  // Auto-estimate masa grasa (kg) and masa muscular (kg) for InBody when peso and % grasa are provided.
+  // Respect manual edits: if the user has changed a field, we stop auto-updating that field.
+  useEffect(() => {
+    if (tipoMedicion !== 'InBody') return
+    const p = Number(peso)
+    const pct = Number(porcentajeGrasa)
+    if (!(p > 0) || isNaN(pct) || pct < 0) return
+
+    const fatKg = Math.round((p * (pct / 100)) * 10) / 10
+    const muscleKg = Math.round((p - fatKg) * 10) / 10
+
+    if (masaGrasaAuto) setMasaGrasaKg(String(fatKg))
+    if (masaMuscularAuto) setMasaMuscular(String(muscleKg))
+  }, [peso, porcentajeGrasa, tipoMedicion, masaGrasaAuto, masaMuscularAuto])
+
   useEffect(() => {
     let mounted = true
     async function loadClients() {
@@ -325,14 +414,99 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
   }, [])
 
   async function handleGuardar() {
-    const validation = calcularResultados()
-    if (!validation || !validation.valid) return
     setIsSaving(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         setErrores(["Usuario no autenticado"])
+        setIsSaving(false)
+        return
+      }
+
+      if (isEditing && evaluation) {
+        // Build partial payload only with fields the user modified (dirtyFields)
+        const payload: any = {}
+        if (dirtyFields['cliente_id']) payload.cliente_id = clienteId || null
+        if (dirtyFields['fecha']) payload.fecha = fechaEvaluacion ? new Date(fechaEvaluacion).toISOString() : null
+        if (dirtyFields['objetivo']) payload.objetivo = objetivo || null
+        if (dirtyFields['patologias']) payload.patologias = patologias || null
+        if (dirtyFields['peso']) payload.peso = peso ? Number(peso) : null
+        if (dirtyFields['estatura']) payload.estatura = estatura ? Number(estatura) : null
+        if (dirtyFields['tipo_medicion']) payload.tipo_medicion = tipoMedicion || null
+        if (dirtyFields['porcentaje_grasa']) payload.porcentaje_grasa = porcentajeGrasa ? Number(porcentajeGrasa) : null
+        if (dirtyFields['pliegues']) payload.pliegues = pliegues
+        if (dirtyFields['masa_muscular']) payload.masa_muscular = masaMuscular ? Number(masaMuscular) : null
+        if (dirtyFields['masa_grasa']) payload.masa_grasa = masaGrasaKg ? Number(masaGrasaKg) : null
+        if (dirtyFields['agua_corporal']) payload.agua_corporal = aguaCorporalKg ? Number(aguaCorporalKg) : null
+        if (dirtyFields['grasa_visceral']) payload.grasa_visceral = grasaVisceral ? Number(grasaVisceral) : null
+        if (dirtyFields['cintura']) payload.cintura = cintura ? Number(cintura) : null
+        if (dirtyFields['cadera']) payload.cadera = cadera ? Number(cadera) : null
+        if (dirtyFields['meta']) payload.meta = meta || null
+
+        // Derived values
+        if (dirtyFields['peso'] || dirtyFields['estatura']) {
+          const pesoNum = Number(peso)
+          const estNum = Number(estatura) / 100
+          if (!isNaN(pesoNum) && !isNaN(estNum) && estNum > 0) {
+            const imcVal = Math.round((pesoNum / (estNum * estNum)) * 10) / 10
+            payload.imc = imcVal
+            payload.categoria_imc = getBMICategory(imcVal)
+          }
+        }
+
+        if (dirtyFields['pliegues'] && tipoMedicion === 'Caliper') {
+          const sumaPliegues = Object.values(pliegues).reduce((acc, v) => acc + Number(v || 0), 0)
+          const calc = calculateCaliperPercentage(sumaPliegues)
+          payload.porcentaje_grasa = calc.percent ?? payload.porcentaje_grasa ?? null
+        }
+
+        // Auto-update masa fields only if user did not manually edit them
+        if ((dirtyFields['peso'] || dirtyFields['porcentaje_grasa']) && !dirtyFields['masa_grasa'] && !dirtyFields['masa_muscular']) {
+          const p = Number(peso)
+          const pct = Number(porcentajeGrasa)
+          if (!isNaN(p) && !isNaN(pct)) {
+            const fatKg = Math.round((p * (pct / 100)) * 10) / 10
+            const muscleKg = Math.round((p - fatKg) * 10) / 10
+            if (masaGrasaAuto) payload.masa_grasa = fatKg
+            if (masaMuscularAuto) payload.masa_muscular = muscleKg
+          }
+        }
+
+        // Recompute icc/ice if perimeters or estatura changed
+        if (dirtyFields['cintura'] || dirtyFields['cadera'] || dirtyFields['estatura']) {
+          const cinturaNum = Number(cintura)
+          const caderaNum = Number(cadera)
+          const estNum = Number(estatura)
+          if (!isNaN(cinturaNum) && !isNaN(caderaNum) && caderaNum > 0) payload.icc = Math.round((cinturaNum / caderaNum) * 100) / 100
+          if (!isNaN(cinturaNum) && !isNaN(estNum) && estNum > 0) payload.ice = Math.round((cinturaNum / estNum) * 100) / 100
+        }
+
+        if (Object.keys(payload).length === 0) {
+          toast('No hay cambios para guardar')
+          setIsSaving(false)
+          return
+        }
+
+        const { error } = await supabase.from('evaluaciones').update(payload).eq('id', evaluation.id)
+        if (error) {
+          setErrores([error.message])
+          toast.error(error.message)
+          setIsSaving(false)
+          return
+        }
+
+        toast.success('Evaluación actualizada')
+        if (onSaved) {
+          try { onSaved() } catch {}
+        }
+        onClose()
+        return
+      }
+
+      // CREATE NEW EVALUATION flow (full validation)
+      const validation = calcularResultados()
+      if (!validation || !validation.valid) {
         setIsSaving(false)
         return
       }
@@ -384,12 +558,12 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
-        <DialogTitle>Nueva evaluación</DialogTitle>
+        <DialogTitle>{isEditing ? 'Editar evaluación' : 'Nueva evaluación'}</DialogTitle>
         <div className="space-y-3">
           {/* Selección de cliente */}
           <div className="grid gap-2">
             <label className="block text-sm font-medium mb-1">Cliente *</label>
-            <Select value={clienteId} onValueChange={setClienteId}>
+            <Select value={clienteId} onValueChange={(v) => { setClienteId(v); markDirty('cliente_id') }}>
               <SelectTrigger>
                 <SelectValue placeholder={loadingClientes ? 'Cargando...' : 'Selecciona un cliente'} />
               </SelectTrigger>
@@ -422,11 +596,11 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
 
           {/* Fecha de evaluación */}
           <label className="block text-sm font-medium mb-1">Fecha de evaluación *</label>
-          <Input type="date" value={fechaEvaluacion} onChange={e => setFechaEvaluacion(e.target.value)} />
+          <Input type="date" value={fechaEvaluacion} onChange={e => { setFechaEvaluacion(e.target.value); markDirty('fecha') }} />
 
           {/* Objetivo */}
           <label className="block text-sm font-medium mb-1">Objetivo general *</label>
-          <Input value={objetivo} onChange={e => setObjetivo(e.target.value)} maxLength={100} placeholder="Ej: bajar grasa, fuerza..." />
+          <Input value={objetivo} onChange={e => { setObjetivo(e.target.value); markDirty('objetivo') }} maxLength={100} placeholder="Ej: bajar grasa, fuerza..." />
 
           {/* Patologías */}
           <label className="block text-sm font-medium mb-1">¿Patologías?</label>
@@ -435,23 +609,23 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
             <Button variant={!tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(false)}>No</Button>
           </div>
           {tienePatologias && (
-            <Input value={patologias} onChange={e => setPatologias(e.target.value)} maxLength={255} placeholder="Especificar patologías" />
+            <Input value={patologias} onChange={e => { setPatologias(e.target.value); markDirty('patologias') }} maxLength={255} placeholder="Especificar patologías" />
           )}
 
           {/* Datos antropométricos */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">Peso (kg) *</label>
-              <Input type="number" value={peso} onChange={e => setPeso(e.target.value)} maxLength={3} min={0} />
+              <Input type="number" value={peso} onChange={e => { setPeso(e.target.value); markDirty('peso') }} maxLength={3} min={0} />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Estatura (cm) *</label>
-              <Input type="number" value={estatura} onChange={e => setEstatura(e.target.value)} maxLength={3} min={0} />
+              <Input type="number" value={estatura} onChange={e => { setEstatura(e.target.value); markDirty('estatura') }} maxLength={3} min={0} />
             </div>
           </div>
 
           <label className="block text-sm font-medium mb-1">Métrica corporal</label>
-          <Select value={tipoMedicion} onValueChange={setTipoMedicion}>
+          <Select value={tipoMedicion} onValueChange={(v) => { setTipoMedicion(v); markDirty('tipo_medicion') }}>
             <SelectTrigger>
               <SelectValue placeholder="Selecciona" />
             </SelectTrigger>
@@ -462,7 +636,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
           </Select>
 
           <label className="block text-sm font-medium mb-1">% Grasa *</label>
-          <Input type="number" value={porcentajeGrasa} onChange={e => setPorcentajeGrasa(e.target.value)} min={0} max={100} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
+          <Input type="number" value={porcentajeGrasa} onChange={e => { setPorcentajeGrasa(e.target.value); markDirty('porcentaje_grasa') }} min={0} max={100} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
 
           {/* Info del cálculo Caliper */}
           {tipoMedicion === 'Caliper' && caliperInfo && (
@@ -481,19 +655,19 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label>Masa muscular (kg)</label>
-                <Input type="number" value={masaMuscular} onChange={e => setMasaMuscular(e.target.value)} />
+                <Input type="number" value={masaMuscular} onChange={e => { setMasaMuscular(e.target.value); setMasaMuscularAuto(false); markDirty('masa_muscular') }} />
               </div>
               <div>
                 <label>Masa grasa (kg)</label>
-                <Input type="number" value={masaGrasaKg} onChange={e => setMasaGrasaKg(e.target.value)} />
+                <Input type="number" value={masaGrasaKg} onChange={e => { setMasaGrasaKg(e.target.value); setMasaGrasaAuto(false); markDirty('masa_grasa') }} />
               </div>
               <div>
                 <label>Agua corporal (L)</label>
-                <Input type="number" value={aguaCorporalKg} onChange={e => setAguaCorporalKg(e.target.value)} />
+                <Input type="number" value={aguaCorporalKg} onChange={e => { setAguaCorporalKg(e.target.value); markDirty('agua_corporal') }} />
               </div>
               <div>
                 <label>Grasa visceral (nivel)</label>
-                <Input type="number" value={grasaVisceral} onChange={e => setGrasaVisceral(e.target.value)} />
+                <Input type="number" value={grasaVisceral} onChange={e => { setGrasaVisceral(e.target.value); markDirty('grasa_visceral') }} />
               </div>
             </div>
           )}
@@ -506,36 +680,36 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
                   <div className="text-xs text-muted-foreground">Durnin &amp; Womersley</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-3">
-                <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => setPliegues({ ...pliegues, bicipital: e.target.value })} />
-                <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => setPliegues({ ...pliegues, tricipital: e.target.value })} />
-                <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => setPliegues({ ...pliegues, subescapular: e.target.value })} />
-                <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => setPliegues({ ...pliegues, suprailiaco: e.target.value })} />
+                <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => { setPliegues({ ...pliegues, bicipital: e.target.value }); markDirty('pliegues') }} />
+                <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => { setPliegues({ ...pliegues, tricipital: e.target.value }); markDirty('pliegues') }} />
+                <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => { setPliegues({ ...pliegues, subescapular: e.target.value }); markDirty('pliegues') }} />
+                <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => { setPliegues({ ...pliegues, suprailiaco: e.target.value }); markDirty('pliegues') }} />
               </div>
             </>
           )}
 
           {/* Perímetros */}
           <label>¿Añadir mediciones de circunferencia?</label>
-          <div className="flex gap-2">
-            <Button variant={agregarPerimetros ? "default" : "outline"} onClick={() => setAgregarPerimetros(true)}>Sí</Button>
-            <Button variant={!agregarPerimetros ? "default" : "outline"} onClick={() => setAgregarPerimetros(false)}>No</Button>
+            <div className="flex gap-2">
+            <Button variant={agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(true); markDirty('agregar_perimetros') }}>Sí</Button>
+            <Button variant={!agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(false); markDirty('agregar_perimetros') }}>No</Button>
           </div>
           {agregarPerimetros && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label>Cintura (cm)</label>
-                <Input type="number" value={cintura} onChange={e => setCintura(e.target.value)} />
+                <Input type="number" value={cintura} onChange={e => { setCintura(e.target.value); markDirty('cintura') }} />
               </div>
               <div>
                 <label>Cadera (cm)</label>
-                <Input type="number" value={cadera} onChange={e => setCadera(e.target.value)} />
+                <Input type="number" value={cadera} onChange={e => { setCadera(e.target.value); markDirty('cadera') }} />
               </div>
             </div>
           )}
 
           {/* Meta */}
           <label>Meta a corto plazo</label>
-          <Input value={meta} onChange={e => setMeta(e.target.value)} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
+          <Input value={meta} onChange={e => { setMeta(e.target.value); markDirty('meta') }} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
 
           {/* Mostrar errores */}
           {errores.length > 0 && (
@@ -565,7 +739,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved }: { open:
               className="bg-primary text-white rounded-md py-2 font-semibold hover:bg-primary/90 transition w-full disabled:opacity-60"
               onClick={handleGuardar}
             >
-              {isSaving ? 'Guardando...' : 'Guardar evaluación'}
+              {isSaving ? 'Guardando...' : (isEditing ? 'Guardar cambios' : 'Guardar evaluación')}
             </button>
             <button
               className="border border-input rounded-md py-2 font-semibold hover:bg-muted transition w-full"
