@@ -5,12 +5,13 @@ import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 
 function imcColor(category?: string) {
-  if (!category) return 'bg-gray-400 text-white'
-  if (category === 'Normal') return 'bg-emerald-600 text-white'
-  if (category === 'Bajo peso') return 'bg-yellow-500 text-white'
-  if (category.startsWith('Obesidad')) return 'bg-red-600 text-white'
-  if (category === 'Sobrepeso') return 'bg-orange-500 text-white'
-  return 'bg-gray-500 text-white'
+  if (!category) return 'bg-gray-100 text-gray-800'
+  const key = (category || '').toLowerCase()
+  if (key.includes('bajo')) return 'bg-blue-100 text-blue-800'
+  if (key.includes('normal')) return 'bg-emerald-100 text-emerald-800'
+  if (key.includes('sobrepeso')) return 'bg-yellow-100 text-yellow-800'
+  if (key.includes('obesidad') || key.includes('alto') || key.includes('elevado')) return 'bg-red-100 text-red-800'
+  return 'bg-gray-100 text-gray-800'
 }
 
 function normalizeGender(g?: string) {
@@ -22,41 +23,39 @@ function normalizeGender(g?: string) {
 }
 
 function fatCategory(fat?: number | null, gender?: string) {
-  if (fat == null) return { label: '—', color: 'bg-gray-400 text-white' }
+  if (fat == null) return { label: '—', color: 'bg-gray-100 text-gray-800' }
   const n = Number(fat)
   if (isNaN(n)) return { label: '—', color: 'bg-gray-400 text-white' }
   const g = normalizeGender(gender)
-
+  // Simplified categories with universally-understood colors:
+  // Blue = Bajo, Green = Normal, Yellow = Sobrepeso, Red = Alto/Obesidad
   if (g === 'male') {
-    if (n <= 5) return { label: 'Esencial', color: 'bg-violet-600 text-white' }
-    if (n <= 13) return { label: 'Atleta', color: 'bg-emerald-600 text-white' }
-    if (n <= 17) return { label: 'Fitness', color: 'bg-sky-600 text-white' }
-    if (n <= 24) return { label: 'Promedio', color: 'bg-orange-400 text-black' }
-    return { label: 'Obesidad', color: 'bg-red-600 text-white' }
+    if (n < 6) return { label: 'Bajo', color: 'bg-blue-100 text-blue-800' }
+    if (n <= 24) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800' }
+    if (n <= 29) return { label: 'Sobrepeso', color: 'bg-yellow-100 text-yellow-800' }
+    return { label: 'Alto', color: 'bg-red-100 text-red-800' }
   }
 
   if (g === 'female') {
-    if (n <= 13) return { label: 'Esencial', color: 'bg-violet-600 text-white' }
-    if (n <= 20) return { label: 'Atleta', color: 'bg-emerald-600 text-white' }
-    if (n <= 24) return { label: 'Fitness', color: 'bg-sky-600 text-white' }
-    if (n <= 31) return { label: 'Promedio', color: 'bg-orange-400 text-black' }
-    return { label: 'Obesidad', color: 'bg-red-600 text-white' }
+    if (n < 14) return { label: 'Bajo', color: 'bg-blue-100 text-blue-800' }
+    if (n <= 31) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800' }
+    if (n <= 36) return { label: 'Sobrepeso', color: 'bg-yellow-100 text-yellow-800' }
+    return { label: 'Alto', color: 'bg-red-100 text-red-800' }
   }
 
   // fallback (mixed / unknown)
-  if (n <= 13) return { label: 'Bajo', color: 'bg-violet-600 text-white' }
-  if (n <= 20) return { label: 'Atleta', color: 'bg-emerald-600 text-white' }
-  if (n <= 24) return { label: 'Fitness', color: 'bg-sky-600 text-white' }
-  if (n <= 31) return { label: 'Promedio', color: 'bg-orange-400 text-black' }
-  return { label: 'Obesidad', color: 'bg-red-600 text-white' }
+  if (n < 10) return { label: 'Bajo', color: 'bg-blue-100 text-blue-800' }
+  if (n <= 31) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800' }
+  if (n <= 36) return { label: 'Sobrepeso', color: 'bg-yellow-100 text-yellow-800' }
+  return { label: 'Alto', color: 'bg-red-100 text-red-800' }
 }
 
 function visceralCategory(visc?: number | null) {
-  if (visc == null) return { label: '—', color: 'bg-gray-400 text-white' }
+  if (visc == null) return { label: '—', color: 'bg-gray-100 text-gray-800' }
   const n = Number(visc)
   if (isNaN(n)) return { label: '—', color: 'bg-gray-400 text-white' }
-  if (n <= 12) return { label: 'Normal', color: 'bg-emerald-600 text-white' }
-  return { label: 'Elevado', color: 'bg-red-600 text-white' }
+  if (n <= 12) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800' }
+  return { label: 'Alto', color: 'bg-red-100 text-red-800' }
 }
 
 export default function EvaluationDetailModal({ open, onOpenChange, evaluation, clientName, clientGender, clientBirthdate: clientBirthdateProp }: { open: boolean; onOpenChange: (open: boolean) => void; evaluation: any; clientName?: string; clientGender?: string; clientBirthdate?: string }) {
@@ -109,56 +108,13 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
     return null
   }
 
-  function renderFatLegend(g?: string) {
-    const n = normalizeGender(g)
-    if (n === 'male') {
-      return (
-        <div className="flex flex-wrap gap-2 mt-1">
-          <div className="px-2 py-0.5 rounded bg-violet-600 text-white text-[11px]">Esencial ≤5%</div>
-          <div className="px-2 py-0.5 rounded bg-emerald-600 text-white text-[11px]">Atleta 6–13%</div>
-          <div className="px-2 py-0.5 rounded bg-sky-600 text-white text-[11px]">Fitness 14–17%</div>
-          <div className="px-2 py-0.5 rounded bg-orange-400 text-black text-[11px]">Promedio 18–24%</div>
-          <div className="px-2 py-0.5 rounded bg-red-600 text-white text-[11px]">Obesidad ≥25%</div>
-        </div>
-      )
-    }
-    if (n === 'female') {
-      return (
-        <div className="flex flex-wrap gap-2 mt-1">
-          <div className="px-2 py-0.5 rounded bg-violet-600 text-white text-[11px]">Esencial ≤13%</div>
-          <div className="px-2 py-0.5 rounded bg-emerald-600 text-white text-[11px]">Atleta 14–20%</div>
-          <div className="px-2 py-0.5 rounded bg-sky-600 text-white text-[11px]">Fitness 21–24%</div>
-          <div className="px-2 py-0.5 rounded bg-orange-400 text-black text-[11px]">Promedio 25–31%</div>
-          <div className="px-2 py-0.5 rounded bg-red-600 text-white text-[11px]">Obesidad ≥32%</div>
-        </div>
-      )
-    }
+  // removed detailed ACE legend badges per request; simplified categories/colors used instead
 
-    // unknown gender -> show both
-    return (
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <div className="font-medium">Hombres</div>
-          <div className="flex flex-wrap gap-2 mt-1">
-            <div className="px-2 py-0.5 rounded bg-violet-600 text-white text-[11px]">Esencial ≤5%</div>
-            <div className="px-2 py-0.5 rounded bg-emerald-600 text-white text-[11px]">Atleta 6–13%</div>
-            <div className="px-2 py-0.5 rounded bg-sky-600 text-white text-[11px]">Fitness 14–17%</div>
-            <div className="px-2 py-0.5 rounded bg-orange-400 text-black text-[11px]">Promedio 18–24%</div>
-            <div className="px-2 py-0.5 rounded bg-red-600 text-white text-[11px]">Obesidad ≥25%</div>
-          </div>
-        </div>
-        <div>
-          <div className="font-medium">Mujeres</div>
-          <div className="flex flex-wrap gap-2 mt-1">
-            <div className="px-2 py-0.5 rounded bg-violet-600 text-white text-[11px]">Esencial ≤13%</div>
-            <div className="px-2 py-0.5 rounded bg-emerald-600 text-white text-[11px]">Atleta 14–20%</div>
-            <div className="px-2 py-0.5 rounded bg-sky-600 text-white text-[11px]">Fitness 21–24%</div>
-            <div className="px-2 py-0.5 rounded bg-orange-400 text-black text-[11px]">Promedio 25–31%</div>
-            <div className="px-2 py-0.5 rounded bg-red-600 text-white text-[11px]">Obesidad ≥32%</div>
-          </div>
-        </div>
-      </div>
-    )
+  function getFatIdealRange(g?: string) {
+    const n = normalizeGender(g)
+    if (n === 'male') return '6–24%'
+    if (n === 'female') return '14–31%'
+    return '6–31%'
   }
 
   function formatNum(v: any, decimals = 1) {
@@ -169,52 +125,63 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
   }
 
   function waistHipCategory(icc?: number | null, gender?: string) {
-    if (icc == null) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    if (icc == null) return { label: '—', color: 'bg-gray-100 text-gray-800', info: '' }
     const n = Number(icc)
     if (isNaN(n)) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
     const g = normalizeGender(gender)
     if (g === 'male') {
-      if (n < 0.9) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Riesgo si ≥0.90' }
-      return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Riesgo ≥0.90' }
+      if (n < 0.9) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Riesgo si ≥0.90' }
+      return { label: 'Elevado', color: 'bg-red-100 text-red-800', info: 'Riesgo ≥0.90' }
     }
     if (g === 'female') {
-      if (n < 0.85) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Riesgo si ≥0.85' }
-      return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Riesgo ≥0.85' }
+      if (n < 0.85) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Riesgo si ≥0.85' }
+      return { label: 'Elevado', color: 'bg-red-100 text-red-800', info: 'Riesgo ≥0.85' }
     }
     // fallback
-    if (n < 0.9) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Umbral general ≥0.90' }
-    return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Umbral general ≥0.90' }
+    if (n < 0.9) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Umbral general ≥0.90' }
+    return { label: 'Elevado', color: 'bg-red-100 text-red-800', info: 'Umbral general ≥0.90' }
   }
 
   function waistHeightCategory(ice?: number | null) {
-    if (ice == null) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    if (ice == null) return { label: '—', color: 'bg-gray-100 text-gray-800', info: '' }
     const n = Number(ice)
     if (isNaN(n)) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
-    if (n < 0.5) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Riesgo si ≥0.50' }
-    return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Riesgo ≥0.50' }
+    if (n < 0.5) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Riesgo si ≥0.50' }
+    return { label: 'Elevado', color: 'bg-red-100 text-red-800', info: 'Riesgo ≥0.50' }
   }
 
   function waterCategoryFromPercent(percent?: number | null, gender?: string) {
-    if (percent == null) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    if (percent == null) return { label: '—', color: 'bg-gray-100 text-gray-800', info: '' }
     const p = Number(percent)
     if (isNaN(p)) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
     const g = normalizeGender(gender)
     if (g === 'male') {
-      if (p >= 50 && p <= 65) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Referencia 50–65% del peso' }
-      return { label: p < 50 ? 'Bajo' : 'Alto', color: p < 50 ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white', info: 'Referencia 50–65% del peso' }
+      if (p >= 50 && p <= 65) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Referencia 50–65% del peso' }
+      return { label: p < 50 ? 'Bajo' : 'Alto', color: p < 50 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800', info: 'Referencia 50–65% del peso' }
     }
     if (g === 'female') {
-      if (p >= 45 && p <= 60) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Referencia 45–60% del peso' }
-      return { label: p < 45 ? 'Bajo' : 'Alto', color: p < 45 ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white', info: 'Referencia 45–60% del peso' }
+      if (p >= 45 && p <= 60) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Referencia 45–60% del peso' }
+      return { label: p < 45 ? 'Bajo' : 'Alto', color: p < 45 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800', info: 'Referencia 45–60% del peso' }
     }
     // unknown
-    if (p >= 50 && p <= 65) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Referencia ~50–65% del peso' }
-    return { label: p < 50 ? 'Bajo' : 'Alto', color: p < 50 ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white', info: 'Referencia ~50–65% del peso' }
+    if (p >= 50 && p <= 65) return { label: 'Normal', color: 'bg-emerald-100 text-emerald-800', info: 'Referencia ~50–65% del peso' }
+    return { label: p < 50 ? 'Bajo' : 'Alto', color: p < 50 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800', info: 'Referencia ~50–65% del peso' }
   }
 
   // prefer birthdate passed as prop, otherwise try to extract from evaluation fields
   const clientBirthdate = clientBirthdateProp ?? evaluation?.cliente_fecha_nacimiento ?? evaluation?.clienteFechaNacimiento ?? undefined
   const age = computeAgeYears(clientBirthdate)
+
+  // Normalize patologías display: interpret empty / NO / N/A / NINGUNA as 'Ninguna'
+  const patologiasRaw = evaluation?.patologias ?? null
+  let patologiasDisplay: string = 'Ninguna'
+  if (patologiasRaw != null) {
+    const pStr = String(patologiasRaw).trim()
+    const up = pStr.toUpperCase()
+    const empties = new Set(['', 'NO', 'N/A', 'NINGUNA', 'NONE', '-'])
+    if (pStr.length === 0 || empties.has(up)) patologiasDisplay = 'Ninguna'
+    else patologiasDisplay = pStr
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -248,7 +215,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                 <div className="font-medium">{evaluation.objetivo ?? '—'}</div>
 
                 <div className="text-muted-foreground mt-2">Patologías</div>
-                <div>{evaluation.patologias ?? '—'}</div>
+                <div>{patologiasDisplay}</div>
 
                 <div className="text-muted-foreground mt-2">Meta a 30 días</div>
                 <div>{evaluation.meta ?? '—'}</div>
@@ -302,7 +269,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                     <div className="font-medium">{fat ?? '—'}</div>
                     <div className={`px-2 py-0.5 rounded text-sm ${fatCat.color}`}>{fatCat.label}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">Rango (ACE) según sexo</div>
+                  <div className="text-xs text-muted-foreground mt-1">Rango ideal: {getFatIdealRange(clientGender)}</div>
                 </div>
 
                 <div className="p-3 border rounded">
@@ -361,10 +328,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                   <div className="text-xs text-muted-foreground mt-1">Normal ≤12</div>
                 </div>
 
-                <div className="p-3 border rounded">
-                  <div className="text-muted-foreground">% Grasa (categoría)</div>
-                  <div className="text-xs text-muted-foreground mt-1">Ver rangos ACE para este sexo</div>
-                </div>
+                {/* removed duplicate % Grasa card - legend now shown in Análisis músculo–grasa */}
               </div>
             </div>
 
