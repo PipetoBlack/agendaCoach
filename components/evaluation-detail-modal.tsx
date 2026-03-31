@@ -161,6 +161,57 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
     )
   }
 
+  function formatNum(v: any, decimals = 1) {
+    if (v == null) return '—'
+    const n = Number(v)
+    if (isNaN(n)) return '—'
+    return decimals === 0 ? String(Math.round(n)) : String(Math.round(n * Math.pow(10, decimals)) / Math.pow(10, decimals))
+  }
+
+  function waistHipCategory(icc?: number | null, gender?: string) {
+    if (icc == null) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    const n = Number(icc)
+    if (isNaN(n)) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    const g = normalizeGender(gender)
+    if (g === 'male') {
+      if (n < 0.9) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Riesgo si ≥0.90' }
+      return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Riesgo ≥0.90' }
+    }
+    if (g === 'female') {
+      if (n < 0.85) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Riesgo si ≥0.85' }
+      return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Riesgo ≥0.85' }
+    }
+    // fallback
+    if (n < 0.9) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Umbral general ≥0.90' }
+    return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Umbral general ≥0.90' }
+  }
+
+  function waistHeightCategory(ice?: number | null) {
+    if (ice == null) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    const n = Number(ice)
+    if (isNaN(n)) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    if (n < 0.5) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Riesgo si ≥0.50' }
+    return { label: 'Elevado', color: 'bg-red-600 text-white', info: 'Riesgo ≥0.50' }
+  }
+
+  function waterCategoryFromPercent(percent?: number | null, gender?: string) {
+    if (percent == null) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    const p = Number(percent)
+    if (isNaN(p)) return { label: '—', color: 'bg-gray-400 text-white', info: '' }
+    const g = normalizeGender(gender)
+    if (g === 'male') {
+      if (p >= 50 && p <= 65) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Referencia 50–65% del peso' }
+      return { label: p < 50 ? 'Bajo' : 'Alto', color: p < 50 ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white', info: 'Referencia 50–65% del peso' }
+    }
+    if (g === 'female') {
+      if (p >= 45 && p <= 60) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Referencia 45–60% del peso' }
+      return { label: p < 45 ? 'Bajo' : 'Alto', color: p < 45 ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white', info: 'Referencia 45–60% del peso' }
+    }
+    // unknown
+    if (p >= 50 && p <= 65) return { label: 'Normal', color: 'bg-emerald-600 text-white', info: 'Referencia ~50–65% del peso' }
+    return { label: p < 50 ? 'Bajo' : 'Alto', color: p < 50 ? 'bg-yellow-400 text-black' : 'bg-red-600 text-white', info: 'Referencia ~50–65% del peso' }
+  }
+
   // prefer birthdate passed as prop, otherwise try to extract from evaluation fields
   const clientBirthdate = clientBirthdateProp ?? evaluation?.cliente_fecha_nacimiento ?? evaluation?.clienteFechaNacimiento ?? undefined
   const age = computeAgeYears(clientBirthdate)
@@ -213,33 +264,143 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
             </div>
           </section>
 
-          {/* 2) Resultados */}
+          {/* 2) Resultados (agrupados y categorizados) */}
           <section className="p-3 border rounded">
-            <h3 className="font-semibold mb-2">Resultados</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-muted-foreground">IMC</div>
-                <div className="font-medium">{imc ?? '—'}</div>
-                <div className="text-xs text-muted-foreground">Rango ideal: 18.5–24.9</div>
-              </div>
+            <h3 className="font-semibold mb-3">Resultados</h3>
 
-              <div>
-                <div className="text-muted-foreground">% Grasa</div>
-                <div className="font-medium">{fat ?? '—'}{fat != null ? ` · ${fatCat.label}` : ''}</div>
-                <div className="text-xs text-muted-foreground">Rango referencia (ACE) para este sexo:</div>
-                {renderFatLegend(clientGender)}
-              </div>
+            {/* Análisis de obesidad */}
+            <div className="mb-3">
+              <h4 className="font-semibold text-sm mb-2">Análisis de obesidad</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">IMC</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{imc ?? '—'}</div>
+                    <div className={`px-2 py-0.5 rounded text-sm ${imcColor(categoria)}`}>{categoria ?? '—'}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Rango ideal: 18.5–24.9</div>
+                </div>
 
-              <div>
-                <div className="text-muted-foreground">Grasa visceral</div>
-                <div className="font-medium">{evaluation?.grasa_visceral ?? evaluation?.grasaVisceral ?? '—'}</div>
-                <div className="text-xs text-muted-foreground">Normal ≤12</div>
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Grasa visceral</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{evaluation?.grasa_visceral ?? evaluation?.grasaVisceral ?? '—'}</div>
+                    <div className={`px-2 py-0.5 rounded text-sm ${viscCat.color}`}>{viscCat.label}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Normal ≤12</div>
+                </div>
               </div>
+            </div>
 
-              <div>
-                <div className="text-muted-foreground">ICC</div>
-                <div className="font-medium">{evaluation?.icc ?? '—'}</div>
-                <div className="text-xs text-muted-foreground">Relación cintura/cadera</div>
+            {/* Análisis músculo–grasa */}
+            <div className="mb-3">
+              <h4 className="font-semibold text-sm mb-2">Análisis músculo–grasa</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">% Grasa</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{fat ?? '—'}</div>
+                    <div className={`px-2 py-0.5 rounded text-sm ${fatCat.color}`}>{fatCat.label}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Rango (ACE) según sexo</div>
+                </div>
+
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Masa muscular (kg)</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{evaluation?.masa_muscular ?? evaluation?.masaMuscular ?? '—'}</div>
+                    <div className="px-2 py-0.5 rounded text-sm bg-gray-100 text-gray-800">Referencia</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Rango: variable por sexo y edad</div>
+                </div>
+
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Masa grasa (kg)</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{evaluation?.masa_grasa ?? evaluation?.masaGrasa ?? '—'}</div>
+                    <div className="px-2 py-0.5 rounded text-sm bg-gray-100 text-gray-800">Referencia</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Rango: derivado del % grasa</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Hidratación */}
+            <div className="mb-3">
+              <h4 className="font-semibold text-sm mb-2">Hidratación</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Agua corporal (L)</div>
+                  <div className="font-medium">{evaluation?.agua_corporal ?? evaluation?.aguaCorporal ?? '—'}</div>
+                  {evaluation?.agua_corporal && evaluation?.peso && (
+                    (() => {
+                      const pct = (Number(evaluation?.agua_corporal) / Number(evaluation?.peso)) * 100
+                      const wc = waterCategoryFromPercent(pct, clientGender)
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="text-xs text-muted-foreground">≈{formatNum(pct, 0)}% del peso</div>
+                            <div className={`px-2 py-0.5 rounded text-sm ${wc.color}`}>{wc.label}</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">{wc.info}</div>
+                        </>
+                      )
+                    })()
+                  )}
+                  {!evaluation?.agua_corporal && (
+                    <div className="text-xs text-muted-foreground mt-1">Referencia: ≈50–65% del peso</div>
+                  )}
+                </div>
+
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Grasa visceral</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{evaluation?.grasa_visceral ?? evaluation?.grasaVisceral ?? '—'}</div>
+                    <div className={`px-2 py-0.5 rounded text-sm ${viscCat.color}`}>{viscCat.label}</div>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Normal ≤12</div>
+                </div>
+
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">% Grasa (categoría)</div>
+                  <div className="text-xs text-muted-foreground mt-1">Ver rangos ACE para este sexo</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Perímetros y ratios */}
+            <div>
+              <h4 className="font-semibold text-sm mb-2">Perímetros y ratios</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">ICC (cintura/cadera)</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{evaluation?.icc ?? '—'}</div>
+                    {(() => {
+                      const wh = waistHipCategory(evaluation?.icc ?? null, clientGender)
+                      return <div className={`px-2 py-0.5 rounded text-sm ${wh.color}`}>{wh.label}</div>
+                    })()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Riesgo: Hombres ≥0.90 · Mujeres ≥0.85</div>
+                </div>
+
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">ICE (cintura/estatura)</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-medium">{evaluation?.ice ?? '—'}</div>
+                    {(() => {
+                      const wht = waistHeightCategory(evaluation?.ice ?? null)
+                      return <div className={`px-2 py-0.5 rounded text-sm ${wht.color}`}>{wht.label}</div>
+                    })()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Riesgo si ≥0.50</div>
+                </div>
+
+                <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Cintura (cm)</div>
+                  <div className="font-medium">{evaluation?.cintura ?? '—'}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Umbrales de riesgo según sexo</div>
+                </div>
               </div>
             </div>
           </section>
