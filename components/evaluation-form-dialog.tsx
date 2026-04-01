@@ -536,17 +536,19 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
   }
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogTitle>
-          <div className="flex items-center justify-center">
-            <h3 className="text-lg font-semibold text-center">{isEditing ? 'Editar evaluación' : 'Nueva evaluación'}</h3>
+      <DialogContent className="max-w-xl w-[min(100vw-1.5rem,520px)] p-0 overflow-hidden">
+        <DialogTitle asChild>
+          <div className="px-4 pt-4 pb-3 border-b bg-muted/40 flex flex-col items-center text-center gap-1">
+            <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">{isEditing ? 'Editar' : 'Nueva'} evaluación</p>
+            <h3 className="text-lg font-semibold text-foreground">Datos rápidos y cálculo previo</h3>
           </div>
         </DialogTitle>
-        <div className="space-y-4 p-4 max-h-[70vh] overflow-auto">
-          <div className="text-sm font-medium text-center text-muted-foreground mb-2">Rellena los datos para crear o editar la evaluación</div>
-          {/* Selección de cliente */}
-          <div className="grid gap-2">
-            <label className="block text-sm font-medium mb-1">Cliente *</label>
+        <div className="max-h-[72vh] overflow-auto px-4 pb-4 pt-3 space-y-5 bg-background">
+          <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">Cliente</span>
+              <span className="text-xs text-muted-foreground">Selecciona un cliente para comenzar</span>
+            </div>
             <Select value={clienteId} onValueChange={(v) => { setClienteId(v); markDirty('cliente_id') }}>
               <SelectTrigger>
                 <SelectValue placeholder={loadingClientes ? 'Cargando...' : 'Selecciona un cliente'} />
@@ -563,14 +565,13 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
                 )}
               </SelectContent>
             </Select>
-            {/* Mostrar edad y género si cliente seleccionado */}
             {clienteId && (
-              <div className="text-xs text-muted-foreground mb-2">
+              <div className="text-xs text-muted-foreground">
                 {(() => {
                   const sel = clientes.find((c) => c.id === clienteId)
                   return (
                     <>
-                      Edad: {sel ? computeAge(sel.fecha_nacimiento) : '—'} | Género: {sel?.genero ?? '—'}
+                      Edad: {sel ? computeAge(sel.fecha_nacimiento) : '—'} · Género: {sel?.genero ?? '—'}
                     </>
                   )
                 })()}
@@ -578,160 +579,172 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
             )}
           </div>
 
-          {/* Fecha de evaluación */}
-          <label className="block text-sm font-medium mb-1">Fecha de evaluación *</label>
-          <Input type="date" value={fechaEvaluacion} onChange={e => { setFechaEvaluacion(e.target.value); markDirty('fecha') }} />
-
-          {/* Objetivo */}
-          <label className="block text-sm font-medium mb-1">Objetivo general *</label>
-          <Input value={objetivo} onChange={e => { setObjetivo(e.target.value); markDirty('objetivo') }} maxLength={100} placeholder="Ej: bajar grasa, fuerza..." />
-
-          {/* Patologías */}
-          <label className="block text-sm font-medium mb-1">¿Patologías?</label>
-          <div className="flex gap-2">
-            <Button variant={tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(true)}>Sí</Button>
-            <Button variant={!tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(false)}>No</Button>
-          </div>
-          {tienePatologias && (
-            <Input value={patologias} onChange={e => { setPatologias(e.target.value); markDirty('patologias') }} maxLength={255} placeholder="Especificar patologías" />
-          )}
-
-          {/* Datos antropométricos */}
-          <div className="text-sm font-semibold">Datos antropométricos</div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Peso (kg) *</label>
-              <Input type="number" value={peso} onChange={e => { setPeso(e.target.value); markDirty('peso') }} maxLength={3} min={0} />
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Fecha *</label>
+                <Input type="date" value={fechaEvaluacion} onChange={e => { setFechaEvaluacion(e.target.value); markDirty('fecha') }} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Objetivo general *</label>
+                <Input value={objetivo} onChange={e => { setObjetivo(e.target.value); markDirty('objetivo') }} maxLength={100} placeholder="Ej: bajar grasa, fuerza..." />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Estatura (cm) *</label>
-              <Input type="number" value={estatura} onChange={e => { setEstatura(e.target.value); markDirty('estatura') }} maxLength={3} min={0} />
-            </div>
-          </div>
 
-          <label className="block text-sm font-medium mb-1">Métrica corporal</label>
-          <Select value={tipoMedicion} onValueChange={(v) => { setTipoMedicion(v); markDirty('tipo_medicion') }}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecciona" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="InBody">InBody</SelectItem>
-              <SelectItem value="Caliper">Caliper</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <label className="block text-sm font-medium mb-1">% Grasa *</label>
-          <Input type="number" value={porcentajeGrasa} onChange={e => { setPorcentajeGrasa(e.target.value); markDirty('porcentaje_grasa') }} min={0} max={100} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
-
-          {/* Info del cálculo Caliper */}
-          {tipoMedicion === 'Caliper' && caliperInfo && (
-            <div className="text-xs text-muted-foreground mt-1">
-              <div><b>Método:</b> {caliperInfo.method || caliperInfo.method}</div>
-              <div>Suma pliegues: {caliperInfo.sum ?? '-'} mm</div>
-              {caliperInfo.dens !== undefined && <div>Densidad: {caliperInfo.dens}</div>}
-              {caliperInfo.age !== undefined && caliperInfo.gender && (
-                <div>Edad: {caliperInfo.age ?? '-'} años | Sexo: {caliperInfo.gender}</div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">¿Patologías?</span>
+                <span className="text-xs text-muted-foreground">Sólo si aplica</span>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant={tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(true)}>Sí</Button>
+                <Button size="sm" variant={!tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(false)}>No</Button>
+              </div>
+              {tienePatologias && (
+                <Input value={patologias} onChange={e => { setPatologias(e.target.value); markDirty('patologias') }} maxLength={255} placeholder="Especificar patologías" />
               )}
             </div>
-          )}
+          </div>
 
-          {/* Campos InBody */}
-          {tipoMedicion === 'InBody' && (
-            <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Mediciones básicas</span>
+              <span className="text-xs text-muted-foreground">Peso / Estatura</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium mb-1">Masa muscular (kg)</label>
-                <Input type="number" value={masaMuscular} onChange={e => { setMasaMuscular(e.target.value); setMasaMuscularAuto(false); markDirty('masa_muscular') }} />
+                <label className="block text-xs font-medium mb-1">Peso (kg) *</label>
+                <Input type="number" value={peso} onChange={e => { setPeso(e.target.value); markDirty('peso') }} maxLength={3} min={0} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Masa libre de grasa (kg)</label>
-                <Input type="number" value={masaGrasaKg} onChange={e => { setMasaGrasaKg(e.target.value); setMasaGrasaAuto(false); markDirty('masa_grasa') }} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Agua corporal (L)</label>
-                <Input type="number" value={aguaCorporalKg} onChange={e => { setAguaCorporalKg(e.target.value); markDirty('agua_corporal') }} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Grasa visceral (nivel)</label>
-                <Input type="number" value={grasaVisceral} onChange={e => { setGrasaVisceral(e.target.value); markDirty('grasa_visceral') }} />
+                <label className="block text-xs font-medium mb-1">Estatura (cm) *</label>
+                <Input type="number" value={estatura} onChange={e => { setEstatura(e.target.value); markDirty('estatura') }} maxLength={3} min={0} />
               </div>
             </div>
-          )}
 
-          {/* Pliegues si Caliper */}
-          {tipoMedicion === "Caliper" && (
-            <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Métrica corporal</label>
+                <Select value={tipoMedicion} onValueChange={(v) => { setTipoMedicion(v); markDirty('tipo_medicion') }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="InBody">InBody</SelectItem>
+                    <SelectItem value="Caliper">Caliper</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium">% Grasa *</label>
+                <Input type="number" value={porcentajeGrasa} onChange={e => { setPorcentajeGrasa(e.target.value); markDirty('porcentaje_grasa') }} min={0} max={100} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
+              </div>
+            </div>
+
+            {tipoMedicion === 'Caliper' && caliperInfo && (
+              <div className="rounded-md border bg-background px-3 py-2 text-xs text-muted-foreground">
+                <div className="font-medium text-foreground">Método: {caliperInfo.method || caliperInfo.method}</div>
+                <div>Suma pliegues: {caliperInfo.sum ?? '-'} mm</div>
+                {caliperInfo.dens !== undefined && <div>Densidad: {caliperInfo.dens}</div>}
+                {caliperInfo.age !== undefined && caliperInfo.gender && (
+                  <div>Edad: {caliperInfo.age ?? '-'} años · Sexo: {caliperInfo.gender}</div>
+                )}
+              </div>
+            )}
+
+            {tipoMedicion === 'InBody' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Masa muscular (kg)</label>
+                  <Input type="number" value={masaMuscular} onChange={e => { setMasaMuscular(e.target.value); setMasaMuscularAuto(false); markDirty('masa_muscular') }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Masa libre de grasa (kg)</label>
+                  <Input type="number" value={masaGrasaKg} onChange={e => { setMasaGrasaKg(e.target.value); setMasaGrasaAuto(false); markDirty('masa_grasa') }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Agua corporal (L)</label>
+                  <Input type="number" value={aguaCorporalKg} onChange={e => { setAguaCorporalKg(e.target.value); markDirty('agua_corporal') }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Grasa visceral (nivel)</label>
+                  <Input type="number" value={grasaVisceral} onChange={e => { setGrasaVisceral(e.target.value); markDirty('grasa_visceral') }} />
+                </div>
+              </div>
+            )}
+
+            {tipoMedicion === "Caliper" && (
+              <>
                 <div className="mt-2 flex items-baseline justify-between">
                   <div className="text-sm font-semibold">Densidad corporal</div>
                   <div className="text-xs text-muted-foreground">Durnin &amp; Womersley</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-3">
-                <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => { setPliegues({ ...pliegues, bicipital: e.target.value }); markDirty('pliegues') }} />
-                <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => { setPliegues({ ...pliegues, tricipital: e.target.value }); markDirty('pliegues') }} />
-                <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => { setPliegues({ ...pliegues, subescapular: e.target.value }); markDirty('pliegues') }} />
-                <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => { setPliegues({ ...pliegues, suprailiaco: e.target.value }); markDirty('pliegues') }} />
-              </div>
-            </>
-          )}
-
-          {/* Perímetros */}
-          <label className="block text-sm font-medium mb-1">¿Añadir mediciones de circunferencia?</label>
-            <div className="flex gap-2">
-            <Button variant={agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(true); markDirty('agregar_perimetros') }}>Sí</Button>
-            <Button variant={!agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(false); markDirty('agregar_perimetros') }}>No</Button>
+                  <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => { setPliegues({ ...pliegues, bicipital: e.target.value }); markDirty('pliegues') }} />
+                  <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => { setPliegues({ ...pliegues, tricipital: e.target.value }); markDirty('pliegues') }} />
+                  <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => { setPliegues({ ...pliegues, subescapular: e.target.value }); markDirty('pliegues') }} />
+                  <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => { setPliegues({ ...pliegues, suprailiaco: e.target.value }); markDirty('pliegues') }} />
+                </div>
+              </>
+            )}
           </div>
-          {agregarPerimetros && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-sm font-medium mb-1">Cintura (cm)</label>
-                <Input type="number" value={cintura} onChange={e => { setCintura(e.target.value); markDirty('cintura') }} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Cadera (cm)</label>
-                <Input type="number" value={cadera} onChange={e => { setCadera(e.target.value); markDirty('cadera') }} />
-              </div>
+
+          <div className="rounded-lg border bg-muted/10 p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Perímetros opcionales</span>
+              <span className="text-xs text-muted-foreground">Cintura / Cadera</span>
             </div>
-          )}
+            <div className="flex gap-2">
+              <Button size="sm" variant={agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(true); markDirty('agregar_perimetros') }}>Sí</Button>
+              <Button size="sm" variant={!agregarPerimetros ? "default" : "outline"} onClick={() => { setAgregarPerimetros(false); markDirty('agregar_perimetros') }}>No</Button>
+            </div>
+            {agregarPerimetros && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Cintura (cm)</label>
+                  <Input type="number" value={cintura} onChange={e => { setCintura(e.target.value); markDirty('cintura') }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Cadera (cm)</label>
+                  <Input type="number" value={cadera} onChange={e => { setCadera(e.target.value); markDirty('cadera') }} />
+                </div>
+              </div>
+            )}
+          </div>
 
-          {/* Meta */}
-          <label className="block text-sm font-medium mb-1">Meta a corto plazo</label>
-          <Input value={meta} onChange={e => { setMeta(e.target.value); markDirty('meta') }} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
-
-          {/* Mostrar errores */}
           {errores.length > 0 && (
-            <div className="text-red-500 text-sm mt-2">
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {errores.map((err, i) => <div key={i}>{err}</div>)}
             </div>
           )}
 
-          {/* Mostrar resultados solo si existen y no hay errores */}
           {resultados && errores.length === 0 && (
-            <div className="mt-4 p-4 border rounded bg-muted">
-              <div><b>Análisis general:</b></div>
-              <div>Índice de masa corporal: {resultados.imc}</div>
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-1">
+              <div className="text-sm font-semibold">Análisis previo</div>
+              <div className="text-sm">IMC: <span className="font-semibold">{resultados.imc}</span></div>
               {resultados.categoriaImc && (
-                <>
-                  <div>Categoría: {resultados.categoriaImc}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Para ver el detalle completo, finaliza la evaluación.</div>
-                </>
+                <div className="text-xs text-muted-foreground">Categoría: {resultados.categoriaImc}</div>
               )}
+              <div className="text-xs text-muted-foreground">Finaliza para ver el detalle completo.</div>
             </div>
           )}
 
-          {/* Botones */}
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              disabled={isSaving}
-              className="bg-primary text-white rounded-md py-2 font-semibold hover:bg-primary/90 transition w-full disabled:opacity-60"
-              onClick={handleGuardar}
-            >
-              {isSaving ? 'Guardando...' : (isEditing ? 'Guardar cambios' : 'Guardar evaluación')}
-            </button>
-            <button
-              className="border border-input rounded-md py-2 font-semibold hover:bg-muted transition w-full"
-              onClick={onClose}
-            >
-              Cancelar
-            </button>
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">Meta propuesta para este mes</span>
+            </div>
+            <Input value={meta} onChange={e => { setMeta(e.target.value); markDirty('meta') }} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
+          </div>
+
+          <div className="sticky bottom-0 left-0 right-0 bg-background pt-2 pb-1">
+            <div className="flex flex-col gap-2">
+              <Button disabled={isSaving} className="w-full" onClick={handleGuardar}>
+                {isSaving ? 'Guardando...' : (isEditing ? 'Guardar cambios' : 'Guardar evaluación')}
+              </Button>
+              <Button variant="outline" className="w-full" onClick={onClose}>
+                Cancelar
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
