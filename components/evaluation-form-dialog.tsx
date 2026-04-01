@@ -736,7 +736,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
             <Input value={meta} onChange={e => { setMeta(e.target.value); markDirty('meta') }} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
           </div>
 
-          <div className="sticky bottom-0 left-0 right-0 bg-background pt-2 pb-1">
+          <div className="pt-2 pb-2">
             <div className="flex flex-col gap-2">
               <Button disabled={isSaving} className="w-full" onClick={handleGuardar}>
                 {isSaving ? 'Guardando...' : (isEditing ? 'Guardar cambios' : 'Guardar evaluación')}
