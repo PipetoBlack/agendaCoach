@@ -262,7 +262,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
             {/* Análisis músculo–grasa */}
             <div className="mb-3">
               <h4 className="font-semibold text-sm mb-2">Análisis músculo–grasa</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="p-3 border rounded">
                   <div className="text-muted-foreground">% Grasa</div>
                   <div className="flex items-center justify-between">
@@ -351,11 +351,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                   <div className="text-xs text-muted-foreground mt-1">Riesgo si ≥0.50</div>
                 </div>
 
-                <div className="p-3 border rounded">
-                  <div className="text-muted-foreground">Cintura (cm)</div>
-                  <div className="font-medium">{evaluation?.cintura ?? '—'}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Umbrales de riesgo según sexo</div>
-                </div>
+                {/* Tarjeta 'Cintura (cm)' eliminada por solicitud del usuario */}
               </div>
             </div>
           </section>
