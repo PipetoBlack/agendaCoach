@@ -239,11 +239,11 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
       setCadera(evaluation.cadera != null ? String(evaluation.cadera) : "")
       setMeta(evaluation.meta ?? "")
       setMasaMuscular(evaluation.masa_muscular != null ? String(evaluation.masa_muscular) : "")
-      setMasaGrasaKg(evaluation.masa_grasa != null ? String(evaluation.masa_grasa) : "")
+      setMasaGrasaKg(evaluation.masa_libre_grasa != null ? String(evaluation.masa_libre_grasa) : (evaluation.masa_grasa != null ? String(evaluation.masa_grasa) : ""))
       setAguaCorporalKg(evaluation.agua_corporal != null ? String(evaluation.agua_corporal) : "")
       setGrasaVisceral(evaluation.grasa_visceral != null ? String(evaluation.grasa_visceral) : "")
       setMasaMuscularAuto(evaluation.masa_muscular == null)
-      setMasaGrasaAuto(evaluation.masa_grasa == null)
+      setMasaGrasaAuto((evaluation.masa_libre_grasa == null) && (evaluation.masa_grasa == null))
       setDirtyFields({})
       setErrores([])
       setResultados({
@@ -367,7 +367,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
   }, [peso, estatura, porcentajeGrasa, tipoMedicion, agregarPerimetros, cintura, cadera, clienteId, fechaEvaluacion, objetivo])
 
   // Nota: se ha eliminado el autocompletado automático de
-  // masa grasa y masa muscular para requerir ingreso manual.
+  // masa libre de grasa (campo `masa_libre_grasa`) y masa muscular para requerir ingreso manual.
 
   useEffect(() => {
     let mounted = true
@@ -425,7 +425,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
         if (dirtyFields['porcentaje_grasa']) payload.porcentaje_grasa = porcentajeGrasa ? Number(porcentajeGrasa) : null
         if (dirtyFields['pliegues']) payload.pliegues = pliegues
         if (dirtyFields['masa_muscular']) payload.masa_muscular = masaMuscular ? Number(masaMuscular) : null
-        if (dirtyFields['masa_grasa']) payload.masa_grasa = masaGrasaKg ? Number(masaGrasaKg) : null
+        if (dirtyFields['masa_grasa']) payload.masa_libre_grasa = masaGrasaKg ? Number(masaGrasaKg) : null
         if (dirtyFields['agua_corporal']) payload.agua_corporal = aguaCorporalKg ? Number(aguaCorporalKg) : null
         if (dirtyFields['grasa_visceral']) payload.grasa_visceral = grasaVisceral ? Number(grasaVisceral) : null
         if (dirtyFields['cintura']) payload.cintura = cintura ? Number(cintura) : null
@@ -450,7 +450,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
         }
 
         // No se realiza autocompletado de masa al guardar en edición;
-        // los campos `masa_muscular` y `masa_grasa` deben ingresarse manualmente.
+        // los campos `masa_muscular` y `masa_libre_grasa` deben ingresarse manualmente.
 
         // Recompute icc/ice if perimeters or estatura changed
         if (dirtyFields['cintura'] || dirtyFields['cadera'] || dirtyFields['estatura']) {
@@ -500,7 +500,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
         porcentaje_grasa: validation.resultados?.porcentajeGrasa ?? (porcentajeGrasa ? Number(porcentajeGrasa) : null),
         tipo_medicion: tipoMedicion || null,
         masa_muscular: tipoMedicion === 'InBody' ? (masaMuscular ? Number(masaMuscular) : null) : null,
-        masa_grasa: tipoMedicion === 'InBody' ? (masaGrasaKg ? Number(masaGrasaKg) : null) : null,
+        masa_libre_grasa: tipoMedicion === 'InBody' ? (masaGrasaKg ? Number(masaGrasaKg) : null) : null,
         agua_corporal: tipoMedicion === 'InBody' ? (aguaCorporalKg ? Number(aguaCorporalKg) : null) : null,
         grasa_visceral: tipoMedicion === 'InBody' ? (grasaVisceral ? Number(grasaVisceral) : null) : null,
         pliegues: tipoMedicion === 'Caliper' ? pliegues : null,
@@ -643,7 +643,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
                 <Input type="number" value={masaMuscular} onChange={e => { setMasaMuscular(e.target.value); setMasaMuscularAuto(false); markDirty('masa_muscular') }} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Masa grasa (kg)</label>
+                <label className="block text-sm font-medium mb-1">Masa libre de grasa (kg)</label>
                 <Input type="number" value={masaGrasaKg} onChange={e => { setMasaGrasaKg(e.target.value); setMasaGrasaAuto(false); markDirty('masa_grasa') }} />
               </div>
               <div>

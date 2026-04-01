@@ -273,21 +273,21 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                 </div>
 
                 <div className="p-3 border rounded">
+                  <div className="text-muted-foreground">Masa libre de grasa (kg)</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium">{evaluation?.masa_libre_grasa ?? evaluation?.masa_grasa ?? evaluation?.masaGrasa ?? '—'}</div>
+                      <div className="px-2 py-0.5 rounded text-sm bg-gray-100 text-gray-800">Referencia</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">Rango: derivado del % grasa</div>
+                </div>
+
+                <div className="p-3 border rounded">
                   <div className="text-muted-foreground">Masa muscular (kg)</div>
                   <div className="flex items-center justify-between">
                     <div className="font-medium">{evaluation?.masa_muscular ?? evaluation?.masaMuscular ?? '—'}</div>
                     <div className="px-2 py-0.5 rounded text-sm bg-gray-100 text-gray-800">Referencia</div>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Rango: variable por sexo y edad</div>
-                </div>
-
-                <div className="p-3 border rounded">
-                  <div className="text-muted-foreground">Masa grasa (kg)</div>
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{evaluation?.masa_grasa ?? evaluation?.masaGrasa ?? '—'}</div>
-                    <div className="px-2 py-0.5 rounded text-sm bg-gray-100 text-gray-800">Referencia</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">Rango: derivado del % grasa</div>
                 </div>
               </div>
             </div>
@@ -377,8 +377,8 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                 <div>{evaluation?.masa_muscular ?? evaluation?.masaMuscular ?? '—'}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Masa grasa (kg)</div>
-                <div>{evaluation?.masa_grasa ?? evaluation?.masaGrasa ?? '—'}</div>
+                <div className="text-muted-foreground">Masa libre de grasa (kg)</div>
+                <div>{evaluation?.masa_libre_grasa ?? evaluation?.masa_grasa ?? evaluation?.masaGrasa ?? '—'}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Agua corporal (L)</div>

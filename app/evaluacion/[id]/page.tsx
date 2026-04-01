@@ -25,7 +25,7 @@ export default async function EvaluationDetailPage({ params }: { params: { id: s
           <div><strong>Categoría IMC:</strong> {evaluation.categoria_imc ?? '—'}</div>
           <div><strong>% Grasa:</strong> {evaluation.porcentaje_grasa ?? '—'}</div>
           <div><strong>Masa muscular (kg):</strong> {evaluation.masa_muscular ?? '—'}</div>
-          <div><strong>Masa grasa (kg):</strong> {evaluation.masa_grasa ?? '—'}</div>
+          <div><strong>Masa libre de grasa (kg):</strong> {evaluation.masa_libre_grasa ?? evaluation.masa_grasa ?? '—'}</div>
           <div><strong>Agua corporal (L):</strong> {evaluation.agua_corporal ?? '—'}</div>
           <div><strong>Grasa visceral:</strong> {evaluation.grasa_visceral ?? '—'}</div>
           <div><strong>Cintura (cm):</strong> {evaluation.cintura ?? '—'}</div>
