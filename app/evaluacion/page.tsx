@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, type ReactNode } from 'react'
 import EvaluationFormDialog from '@/components/evaluation-form-dialog'
 import { Button } from '@/components/ui/button'
 import EvaluationPreviewCard from '@/components/evaluation-preview-card'
@@ -7,6 +7,7 @@ import EvaluationDetailModal from '@/components/evaluation-detail-modal'
 import MoreEvaluationsModal from '@/components/more-evaluations-modal'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { Activity, CalendarClock, Clock3, History, Plus } from 'lucide-react'
 
 export default function EvaluacionPage() {
   const [open, setOpen] = useState(false)
@@ -20,6 +21,23 @@ export default function EvaluacionPage() {
   const [selectedClientBirthdate, setSelectedClientBirthdate] = useState<string | undefined>(undefined)
   const [editingEvaluation, setEditingEvaluation] = useState<any | null>(null)
   const [showMore, setShowMore] = useState(false)
+
+  const sortedEvaluations = useMemo(() => {
+    return evaluations.slice().sort((a: any, b: any) => {
+      const da = a?.fecha ? new Date(a.fecha).getTime() : 0
+      const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+      if (db - da !== 0) return db - da
+      return (b.id ?? 0) - (a.id ?? 0)
+    })
+  }, [evaluations])
+
+  const summary = useMemo(() => {
+    if (!evaluations.length) return { total: 0, avgImc: '—', lastDate: '—' }
+    const total = evaluations.length
+    const avg = evaluations.reduce((acc, ev) => acc + (Number(ev.imc) || 0), 0) / total
+    const last = sortedEvaluations[0]?.fecha ? new Date(sortedEvaluations[0].fecha).toLocaleDateString('es-ES') : '—'
+    return { total, avgImc: avg.toFixed(1), lastDate: last }
+  }, [evaluations.length, evaluations, sortedEvaluations])
 
   async function loadLatest() {
     setLoading(true)
@@ -110,17 +128,30 @@ export default function EvaluacionPage() {
   }, [])
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold">Evaluación de composición corporal</h1>
-        <p className="text-sm text-muted-foreground mt-1">Registra fácilmente los datos clave de tus alumnos: IMC, masa muscular, grasa visceral, agua corporal y perímetros. Al finalizar, guarda la evaluación para llevar un seguimiento completo de su progreso.</p>
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="rounded-2xl border bg-gradient-to-r from-emerald-50 to-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-emerald-900">Evaluación de composición corporal</h1>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">Registra IMC, masa muscular, grasa visceral, agua corporal y perímetros. Guarda y consulta el progreso con una vista simple.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => setOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Crear evaluación
+            </Button>
+            <Button variant="outline" onClick={() => setShowMore(true)} className="gap-2">
+              <History className="h-4 w-4" />
+              Historial
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <Button onClick={() => setOpen(true)}>Crear evaluación</Button>
-        <Button variant="ghost" onClick={() => setShowMore(true)} className="text-emerald-700 bg-emerald-700/5 hover:bg-emerald-700/10">
-          Historial
-        </Button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <StatCard icon={<Activity className="h-4 w-4" />} label="Total registradas" value={summary.total || '—'} />
+        <StatCard icon={<Clock3 className="h-4 w-4" />} label="IMC promedio" value={summary.avgImc} />
+        <StatCard icon={<CalendarClock className="h-4 w-4" />} label="Última actualización" value={summary.lastDate} />
       </div>
 
       <EvaluationFormDialog open={open} onClose={() => { setOpen(false); setEditingEvaluation(null) }} evaluation={editingEvaluation} onSaved={() => { loadLatest(); setEditingEvaluation(null) }} />
@@ -131,29 +162,52 @@ export default function EvaluacionPage() {
       {/* More modal */}
       <MoreEvaluationsModal open={showMore} onOpenChange={(v) => setShowMore(v)} onSelect={(ev) => { setSelectedEvaluation(ev); setSelectedClientName(clientsMap[ev.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[ev.cliente_id]?.genero ?? undefined); setSelectedClientBirthdate(clientsMap[ev.cliente_id]?.fecha_nacimiento ?? undefined); setShowMore(false) }} />
 
-      <h2 className="text-lg font-semibold mb-3">Últimas 3 evaluaciones ingresadas</h2>
-      {loading && <div>Cargando...</div>}
-      {!loading && evaluations.length === 0 && <div className="text-sm text-muted-foreground">No hay evaluaciones registradas aún.</div>}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Últimas evaluaciones</h2>
+          <span className="text-xs text-muted-foreground">Ordenadas por más recientes</span>
+        </div>
+        {error && <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md p-3">{error}</div>}
+        {loading && (
+          <div className="grid grid-cols-1 gap-3">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="h-24 rounded-xl border bg-muted/30 animate-pulse" />
+            ))}
+          </div>
+        )}
+        {!loading && evaluations.length === 0 && !error && (
+          <div className="text-sm text-muted-foreground border rounded-xl p-4 bg-muted/20">Aún no hay evaluaciones cargadas.</div>
+        )}
 
-      <div className="grid grid-cols-1 gap-3">
-        {evaluations.slice().sort((a: any, b: any) => {
-          const da = a?.fecha ? new Date(a.fecha).getTime() : 0
-          const db = b?.fecha ? new Date(b.fecha).getTime() : 0
-          if (db - da !== 0) return db - da
-          return (b.id ?? 0) - (a.id ?? 0)
-        }).map((ev: any) => (
-            <EvaluationPreviewCard
-            key={ev.id}
-            evaluation={ev}
-            clientName={clientsMap[ev.cliente_id]?.name ?? '—'}
-            onView={(e) => { setSelectedEvaluation(e); setSelectedClientName(clientsMap[e.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[e.cliente_id]?.genero ?? undefined); setSelectedClientBirthdate(clientsMap[e.cliente_id]?.fecha_nacimiento ?? undefined) }}
-            onEdit={(e) => { setEditingEvaluation(e); setOpen(true) }}
-            onDelete={handleDelete}
-          />
-        ))}
+        {!loading && evaluations.length > 0 && (
+          <div className="grid grid-cols-1 gap-3">
+            {sortedEvaluations.map((ev: any) => (
+              <EvaluationPreviewCard
+                key={ev.id}
+                evaluation={ev}
+                clientName={clientsMap[ev.cliente_id]?.name ?? '—'}
+                onView={(e) => { setSelectedEvaluation(e); setSelectedClientName(clientsMap[e.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[e.cliente_id]?.genero ?? undefined); setSelectedClientBirthdate(clientsMap[e.cliente_id]?.fecha_nacimiento ?? undefined) }}
+                onEdit={(e) => { setEditingEvaluation(e); setOpen(true) }}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
 
-      
+function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center gap-3">
+      <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
+        {icon}
+      </div>
+      <div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="text-lg font-semibold text-foreground">{value}</div>
+      </div>
     </div>
   )
 }

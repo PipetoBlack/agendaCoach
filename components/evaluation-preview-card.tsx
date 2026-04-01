@@ -34,43 +34,43 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
   const initials = initialsFromName(clientName)
   const categoria = evaluation?.categoria_imc ?? ''
   const badgeClass = imcBadgeClass(categoria)
+  const imcValue = evaluation?.imc ?? '—'
 
   return (
-    <div className="relative border rounded p-3 bg-card hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2">
-          <div className="flex-shrink-0">
-            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
-              {initials}
-            </div>
+    <div className="border rounded-xl p-4 bg-card/70 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
+            {initials}
           </div>
-
-          <div>
-            <div className="font-semibold">{clientName ?? '—'}</div>
+          <div className="space-y-0.5">
+            <div className="font-semibold leading-tight">{clientName ?? '—'}</div>
             <div className="text-xs text-muted-foreground">{date}</div>
           </div>
         </div>
 
-        <div className="absolute top-3 right-3 flex flex-col items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onView ? onView(evaluation) : null} aria-label="Ver detalle">
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView ? onView(evaluation) : null} aria-label="Ver detalle">
             <Eye className="h-4 w-4" />
             <span className="sr-only">Ver detalle</span>
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit ? onEdit(evaluation) : (onView ? onView(evaluation) : null)} aria-label="Editar evaluación">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit ? onEdit(evaluation) : (onView ? onView(evaluation) : null)} aria-label="Editar evaluación">
             <Pencil className="h-4 w-4" />
           </Button>
-          {onDelete && (
-            <DeleteEvaluationButton evaluation={evaluation} clientName={clientName} onConfirm={onDelete} />
-          )}
+          {onDelete && <DeleteEvaluationButton evaluation={evaluation} clientName={clientName} onConfirm={onDelete} />}
         </div>
       </div>
 
-      <div className="mt-3 text-sm">
-        <div className="flex items-center gap-3">
-          <div><strong>IMC:</strong> {evaluation?.imc ?? '—'}</div>
-          <div className={`px-1.5 py-0.5 rounded-full text-xs ${badgeClass}`}>{categoria || '—'}</div>
+      <div className="mt-3 flex items-center justify-between flex-wrap gap-3">
+        <div className="space-y-1">
+          <div className="text-xs uppercase text-muted-foreground">IMC</div>
+          <div className="text-2xl font-semibold leading-none">{imcValue}</div>
         </div>
-        <div className="mt-2"><strong>Objetivo:</strong> {evaluation?.objetivo ?? '—'}</div>
+        <div className={`px-2 py-1 rounded-full text-xs font-medium ${badgeClass}`}>{categoria || 'Sin categoría'}</div>
+      </div>
+
+      <div className="mt-3 text-sm text-foreground">
+        <span className="text-muted-foreground">Objetivo:</span> {evaluation?.objetivo ?? '—'}
       </div>
     </div>
   )
