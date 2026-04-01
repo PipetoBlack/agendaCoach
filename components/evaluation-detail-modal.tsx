@@ -319,16 +319,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                   )}
                 </div>
 
-                <div className="p-3 border rounded">
-                  <div className="text-muted-foreground">Grasa visceral</div>
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{evaluation?.grasa_visceral ?? evaluation?.grasaVisceral ?? '—'}</div>
-                    <div className={`px-2 py-0.5 rounded text-sm ${viscCat.color}`}>{viscCat.label}</div>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">Normal ≤12</div>
-                </div>
-
-                {/* removed duplicate % Grasa card - legend now shown in Análisis músculo–grasa */}
+                {/* Grasa visceral removed from Hidratación (kept in Análisis de obesidad) */}
               </div>
             </div>
 
