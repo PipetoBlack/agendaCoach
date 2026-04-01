@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import EvaluationFormDialog from '@/components/evaluation-form-dialog'
 import { Button } from '@/components/ui/button'
 import EvaluationPreviewCard from '@/components/evaluation-preview-card'
@@ -7,7 +7,7 @@ import EvaluationDetailModal from '@/components/evaluation-detail-modal'
 import MoreEvaluationsModal from '@/components/more-evaluations-modal'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Activity, CalendarClock, Clock3, History, Plus } from 'lucide-react'
+import { History, Plus } from 'lucide-react'
 
 export default function EvaluacionPage() {
   const [open, setOpen] = useState(false)
@@ -30,14 +30,6 @@ export default function EvaluacionPage() {
       return (b.id ?? 0) - (a.id ?? 0)
     })
   }, [evaluations])
-
-  const summary = useMemo(() => {
-    if (!evaluations.length) return { total: 0, avgImc: '—', lastDate: '—' }
-    const total = evaluations.length
-    const avg = evaluations.reduce((acc, ev) => acc + (Number(ev.imc) || 0), 0) / total
-    const last = sortedEvaluations[0]?.fecha ? new Date(sortedEvaluations[0].fecha).toLocaleDateString('es-ES') : '—'
-    return { total, avgImc: avg.toFixed(1), lastDate: last }
-  }, [evaluations.length, evaluations, sortedEvaluations])
 
   async function loadLatest() {
     setLoading(true)
@@ -148,12 +140,6 @@ export default function EvaluacionPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatCard icon={<Activity className="h-4 w-4" />} label="Total registradas" value={summary.total || '—'} />
-        <StatCard icon={<Clock3 className="h-4 w-4" />} label="IMC promedio" value={summary.avgImc} />
-        <StatCard icon={<CalendarClock className="h-4 w-4" />} label="Última actualización" value={summary.lastDate} />
-      </div>
-
       <EvaluationFormDialog open={open} onClose={() => { setOpen(false); setEditingEvaluation(null) }} evaluation={editingEvaluation} onSaved={() => { loadLatest(); setEditingEvaluation(null) }} />
 
       {/* Detail modal */}
@@ -162,12 +148,14 @@ export default function EvaluacionPage() {
       {/* More modal */}
       <MoreEvaluationsModal open={showMore} onOpenChange={(v) => setShowMore(v)} onSelect={(ev) => { setSelectedEvaluation(ev); setSelectedClientName(clientsMap[ev.cliente_id]?.name ?? '—'); setSelectedClientGender(clientsMap[ev.cliente_id]?.genero ?? undefined); setSelectedClientBirthdate(clientsMap[ev.cliente_id]?.fecha_nacimiento ?? undefined); setShowMore(false) }} />
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
+      <section className="space-y-3">
+        <div className="space-y-1">
           <h2 className="text-lg font-semibold">Últimas evaluaciones</h2>
           <span className="text-xs text-muted-foreground">Ordenadas por más recientes</span>
         </div>
+
         {error && <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md p-3">{error}</div>}
+
         {loading && (
           <div className="grid grid-cols-1 gap-3">
             {Array.from({ length: 3 }).map((_, idx) => (
@@ -175,6 +163,7 @@ export default function EvaluacionPage() {
             ))}
           </div>
         )}
+
         {!loading && evaluations.length === 0 && !error && (
           <div className="text-sm text-muted-foreground border rounded-xl p-4 bg-muted/20">Aún no hay evaluaciones cargadas.</div>
         )}
@@ -193,21 +182,7 @@ export default function EvaluacionPage() {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-function StatCard({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-sm flex items-center gap-3">
-      <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
-        {icon}
-      </div>
-      <div>
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="text-lg font-semibold text-foreground">{value}</div>
-      </div>
+      </section>
     </div>
   )
 }

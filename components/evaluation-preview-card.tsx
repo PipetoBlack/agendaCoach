@@ -30,7 +30,9 @@ function imcBadgeClass(cat?: string) {
 }
 
 export default function EvaluationPreviewCard({ evaluation, clientName, onView, onEdit, onDelete }: { evaluation: any; clientName?: string; onView?: (evaluation: any) => void; onEdit?: (evaluation: any) => void; onDelete?: (evaluation: any) => void }) {
-  const date = evaluation?.fecha ? new Date(evaluation.fecha).toLocaleDateString('es-ES') : ''
+  const date = evaluation?.fecha
+    ? new Date(evaluation.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : ''
   const initials = initialsFromName(clientName)
   const categoria = evaluation?.categoria_imc ?? ''
   const badgeClass = imcBadgeClass(categoria)
@@ -61,10 +63,10 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between flex-wrap gap-3">
-        <div className="space-y-1">
-          <div className="text-xs uppercase text-muted-foreground">IMC</div>
-          <div className="text-2xl font-semibold leading-none">{imcValue}</div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs uppercase text-muted-foreground">IMC</span>
+          <span className="text-xs font-semibold leading-none text-foreground">{imcValue}</span>
         </div>
         <div className={`px-2 py-1 rounded-full text-xs font-medium ${badgeClass}`}>{categoria || 'Sin categoría'}</div>
       </div>
