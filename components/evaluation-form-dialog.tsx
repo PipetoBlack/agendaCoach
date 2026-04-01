@@ -547,9 +547,13 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">Cliente</span>
-              <span className="text-xs text-muted-foreground">Selecciona un cliente para comenzar</span>
+              <span className="text-xs text-muted-foreground">{isEditing ? 'Cliente bloqueado en edición' : 'Selecciona un cliente para comenzar'}</span>
             </div>
-            <Select value={clienteId} onValueChange={(v) => { setClienteId(v); markDirty('cliente_id') }}>
+            <Select
+              disabled={isEditing}
+              value={clienteId}
+              onValueChange={(v) => { setClienteId(v); markDirty('cliente_id') }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={loadingClientes ? 'Cargando...' : 'Selecciona un cliente'} />
               </SelectTrigger>
