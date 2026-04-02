@@ -15,6 +15,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import {
+  Sparkles,
   CalendarCheck,
   LayoutDashboard,
   Users,
@@ -25,6 +26,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { ACTIVATION_ROUTE, getPlanLabel, isPlanExpired } from '@/lib/plan'
 
 const navItems = [
   {
@@ -55,20 +57,10 @@ const accountItem = {
   icon: User2,
 }
 
-function getPlanLabel(planTipo?: string) {
-  if (!planTipo) return 'Sin plan'
-  switch (planTipo) {
-    case 'trial_14':
-      return 'Prueba de 14 días'
-    case 'trial':
-      return 'Prueba'
-    case 'plan_mensual':
-      return 'Plan mensual'
-    case 'plan_vencido':
-      return 'Plan vencido'
-    default:
-      return planTipo
-  }
+const activationItem = {
+  title: 'Activación',
+  url: ACTIVATION_ROUTE,
+  icon: Sparkles,
 }
 
 function getPlanDurationDays(planTipo?: string) {
@@ -85,14 +77,19 @@ function getPlanDurationDays(planTipo?: string) {
 }
 
 function computePlanStats(planTipo?: string, planInicio?: string, planFin?: string) {
+  const isExpired = planTipo === 'plan_vencido' || isPlanExpired(planFin)
+  if (isExpired) {
+    return { label: 'Plan vencido', daysLeft: null, pctUsed: 100, statusText: 'Vencido' }
+  }
+
   const label = getPlanLabel(planTipo)
-  if (!planInicio || !planFin) return { label, daysLeft: null, pctUsed: null }
+  if (!planInicio || !planFin) return { label, daysLeft: null, pctUsed: null, statusText: null }
 
   const fin = new Date(planFin)
   const start = new Date(planInicio)
   const today = new Date()
   if (isNaN(fin.getTime()) || isNaN(start.getTime())) {
-    return { label, daysLeft: null, pctUsed: null }
+    return { label, daysLeft: null, pctUsed: null, statusText: null }
   }
 
   // Clamp to expected duration for known plans to avoid overstating remaining days when DB dates drift.
@@ -102,13 +99,13 @@ function computePlanStats(planTipo?: string, planInicio?: string, planFin?: stri
 
   const msTotal = effectiveFin.getTime() - start.getTime()
   if (msTotal <= 0) {
-    return { label, daysLeft: 0, pctUsed: 100 }
+    return { label: 'Plan vencido', daysLeft: null, pctUsed: 100, statusText: 'Vencido' }
   }
 
   const daysLeft = Math.max(Math.ceil((effectiveFin.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)), 0)
   const pctUsed = Math.min(100, Math.max(0, ((today.getTime() - start.getTime()) / msTotal) * 100))
 
-  return { label, daysLeft, pctUsed }
+  return { label, daysLeft, pctUsed, statusText: null }
 }
 
 function planColor(pctUsed?: number | null) {
@@ -137,6 +134,10 @@ export function AppSidebar({
 
   const planStats = computePlanStats(planTipo, planInicio, planFin)
   const planPctClass = planColor(planStats.pctUsed)
+  const visibleNavItems = restricted
+    ? [activationItem]
+    : [...navItems, accountItem]
+  const planRoute = restricted ? ACTIVATION_ROUTE : accountItem.url
 
   return (
     <Sidebar>
@@ -151,7 +152,7 @@ export function AppSidebar({
           <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground">Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {(restricted ? [accountItem] : [...navItems, accountItem]).map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -182,7 +183,7 @@ export function AppSidebar({
         <div className="px-3 pb-4 text-sm text-sidebar-muted-foreground space-y-3">
           <button
             onClick={() => {
-              router.push('/dashboard/cuenta')
+              router.push(planRoute)
               if (isMobile) setOpenMobile(false)
             }}
             className="w-full rounded-md border border-sidebar-border bg-sidebar-accent/10 px-3 py-2 text-left transition hover:border-sidebar-accent hover:bg-sidebar-accent/20"
@@ -190,10 +191,10 @@ export function AppSidebar({
             <div className="flex items-center justify-between text-xs font-semibold text-sidebar-foreground">
               <span className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-sidebar-muted-foreground" />
-                Plan actual
+                {restricted ? 'Activar cuenta' : 'Plan actual'}
               </span>
               <span className={`text-xs font-semibold ${planPctClass}`}>
-                {planStats.daysLeft != null ? `${planStats.daysLeft} días restantes` : '—'}
+                {planStats.statusText ?? (planStats.daysLeft != null ? `${planStats.daysLeft} días restantes` : '—')}
               </span>
             </div>
             <div className="mt-1 text-sm font-medium text-sidebar-foreground">

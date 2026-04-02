@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { isPlanExpired } from '@/lib/plan'
 import { AccountContent } from './account-content'
 
 export default async function AccountPage() {
@@ -20,7 +21,7 @@ export default async function AccountPage() {
     .eq('id', user.id)
     .single()
 
-  if (profile && profile.estado && profile.plan_fin && profile.plan_fin < nowIso) {
+  if (profile && profile.estado && isPlanExpired(profile.plan_fin, nowIso)) {
     const { data: updated } = await supabase
       .from('perfiles')
       .update({ estado: false })

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { Separator } from '@/components/ui/separator'
+import { isPlanRestricted } from '@/lib/plan'
 import { CalendarCheck } from 'lucide-react'
 import { UserMenu } from '@/components/user-menu'
 
@@ -29,9 +30,7 @@ export default async function DashboardLayout({
     .single()
 
   const nowIso = new Date().toISOString()
-  const isRestricted = !profile?.estado
-    || profile?.plan_tipo === 'plan_vencido'
-    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+  const isRestricted = isPlanRestricted(profile, nowIso)
 
   return (
     <SidebarProvider>

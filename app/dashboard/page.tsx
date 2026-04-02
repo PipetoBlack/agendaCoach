@@ -9,6 +9,7 @@ import { MessageCircle, XCircle, CheckCircle2 } from 'lucide-react'
 import { burnSessionAction, updateSessionStatusAction } from './sessions/actions'
 import { ConfirmBurnSessionButton } from '@/components/confirm-burn-session-button'
 import { ConfirmCancelSessionButton } from '@/components/confirm-cancel-session-button'
+import { ACTIVATION_ROUTE, isPlanRestricted } from '@/lib/plan'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,12 +39,10 @@ export default async function DashboardPage({
     .single()
 
   const nowIso = new Date().toISOString()
-  const isRestricted = !profile?.estado
-    || profile?.plan_tipo === 'plan_vencido'
-    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+  const isRestricted = isPlanRestricted(profile, nowIso)
 
   if (isRestricted) {
-    redirect('/dashboard/cuenta')
+    redirect(ACTIVATION_ROUTE)
   }
 
   const params = await searchParams
