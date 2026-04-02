@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { isPlanExpired } from '@/lib/plan'
+import { ACTIVATION_ROUTE, isPlanExpired, isPlanRestricted } from '@/lib/plan'
 import { AccountContent } from './account-content'
 
 export default async function AccountPage() {
@@ -29,6 +29,10 @@ export default async function AccountPage() {
       .select('nombre_completo, correo, celular, plan_tipo, plan_inicio, plan_fin, estado')
       .single()
     profile = updated ?? profile
+  }
+
+  if (isPlanRestricted(profile, nowIso)) {
+    redirect(ACTIVATION_ROUTE)
   }
 
   return (

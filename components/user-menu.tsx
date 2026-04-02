@@ -17,6 +17,7 @@ import { LogOut, User2 } from 'lucide-react'
 type UserMenuProps = {
   email?: string
   displayName?: string
+  restricted?: boolean
 }
 
 function toTitleCase(value?: string) {
@@ -27,7 +28,7 @@ function toTitleCase(value?: string) {
     .trim()
 }
 
-export function UserMenu({ email, displayName }: UserMenuProps) {
+export function UserMenu({ email, displayName, restricted }: UserMenuProps) {
   const router = useRouter()
   const supabase = createClient()
 
@@ -48,10 +49,15 @@ export function UserMenu({ email, displayName }: UserMenuProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>{label}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/cuenta">Mi cuenta</Link>
-        </DropdownMenuItem>
+        {!restricted && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/cuenta">Mi cuenta</Link>
+            </DropdownMenuItem>
+          </>
+        )}
+        {restricted && <DropdownMenuSeparator />}
         <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Cerrar sesión</span>
