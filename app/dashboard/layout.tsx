@@ -51,7 +51,11 @@ export default async function DashboardLayout({
               <span>AgendaCoach</span>
             </Link>
           </div>
-          <UserMenu email={user.email || undefined} displayName={profile?.nombre_completo || undefined} />
+          <UserMenu
+            email={user.email || undefined}
+            displayName={profile?.nombre_completo || undefined}
+            restricted={isRestricted}
+          />
         </header>
         <div className="p-6">{children}</div>
       </main>
