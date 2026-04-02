@@ -1,4 +1,5 @@
 export const ACTIVATION_ROUTE = '/dashboard/activacion'
+export const SUBSCRIPTION_ROUTE = '/dashboard/suscripcion'
 
 export const MONTHLY_PLAN_DETAILS = {
   name: 'Plan mensual',

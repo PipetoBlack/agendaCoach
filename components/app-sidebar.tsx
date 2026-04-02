@@ -27,7 +27,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
-import { ACTIVATION_ROUTE, getPlanLabel, isPlanExpired } from '@/lib/plan'
+import { ACTIVATION_ROUTE, SUBSCRIPTION_ROUTE, getPlanLabel, isPlanExpired } from '@/lib/plan'
 
 const navItems = [
   {
@@ -138,7 +138,7 @@ export function AppSidebar({
   const visibleNavItems = restricted
     ? [activationItem]
     : [...navItems, accountItem]
-  const planRoute = restricted ? ACTIVATION_ROUTE : accountItem.url
+  const planRoute = restricted ? ACTIVATION_ROUTE : SUBSCRIPTION_ROUTE
   const homeRoute = '/dashboard'
 
   const handleNavigateHome = () => {
