@@ -6,6 +6,7 @@ import { Pencil, Eye } from 'lucide-react'
 import DeleteEvaluationButton from '@/components/delete-evaluation-button'
 import EvaluationProgressDialog from '@/components/evaluation-progress-dialog'
 import { formatEvaluationDate } from '@/lib/evaluation-date'
+import { cn } from '@/lib/utils'
 
 function initialsFromName(name?: string) {
   if (!name) return '—'
@@ -23,7 +24,29 @@ function imcBadgeClass(cat?: string) {
   return 'bg-gray-100 text-gray-800'
 }
 
-export default function EvaluationPreviewCard({ evaluation, clientName, onView, onEdit, onDelete }: { evaluation: any; clientName?: string; onView?: (evaluation: any) => void; onEdit?: (evaluation: any) => void; onDelete?: (evaluation: any) => void }) {
+export default function EvaluationPreviewCard({
+  evaluation,
+  clientName,
+  onView,
+  onEdit,
+  onDelete,
+  showViewAction = true,
+  showEditAction = true,
+  showDeleteAction = true,
+  showProgressAction = true,
+  className,
+}: {
+  evaluation: any
+  clientName?: string
+  onView?: (evaluation: any) => void
+  onEdit?: (evaluation: any) => void
+  onDelete?: (evaluation: any) => void
+  showViewAction?: boolean
+  showEditAction?: boolean
+  showDeleteAction?: boolean
+  showProgressAction?: boolean
+  className?: string
+}) {
   const date = formatEvaluationDate(evaluation?.fecha, 'es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const initials = initialsFromName(clientName)
   const categoria = evaluation?.categoria_imc ?? ''
@@ -31,7 +54,7 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
   const imcValue = evaluation?.imc ?? '—'
 
   return (
-    <div className="rounded-xl border bg-card/80 p-4 transition-shadow hover:shadow-sm">
+    <div className={cn('rounded-xl border bg-card/80 p-4 transition-shadow hover:shadow-sm', className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
@@ -44,14 +67,18 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView ? onView(evaluation) : null} aria-label="Ver detalle">
+            {showViewAction && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onView ? onView(evaluation) : null} aria-label="Ver detalle">
               <Eye className="h-4 w-4" />
               <span className="sr-only">Ver detalle</span>
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit ? onEdit(evaluation) : (onView ? onView(evaluation) : null)} aria-label="Editar evaluación">
+              </Button>
+            )}
+            {showEditAction && (
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit ? onEdit(evaluation) : (onView ? onView(evaluation) : null)} aria-label="Editar evaluación">
               <Pencil className="h-4 w-4" />
-            </Button>
-            {onDelete && <DeleteEvaluationButton evaluation={evaluation} clientName={clientName} onConfirm={onDelete} />}
+              </Button>
+            )}
+            {showDeleteAction && onDelete && <DeleteEvaluationButton evaluation={evaluation} clientName={clientName} onConfirm={onDelete} />}
         </div>
       </div>
 
@@ -65,12 +92,14 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
                 <div className={`rounded-full px-2 py-1 text-[11px] font-medium ${badgeClass}`}>{categoria || 'Sin categoria'}</div>
               </div>
             </div>
-            <EvaluationProgressDialog
-              clientId={evaluation?.cliente_id}
-              clientName={clientName}
-              buttonLabel="Ver progreso"
-              buttonClassName="h-7 shrink-0 rounded-full border-primary/20 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary/15 hover:text-primary"
-            />
+            {showProgressAction ? (
+              <EvaluationProgressDialog
+                clientId={evaluation?.cliente_id}
+                clientName={clientName}
+                buttonLabel="Ver progreso"
+                buttonClassName="h-7 shrink-0 rounded-full border-primary/20 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary/15 hover:text-primary"
+              />
+            ) : null}
           </div>
         </div>
 

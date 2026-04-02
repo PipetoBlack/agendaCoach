@@ -10,7 +10,10 @@ import { Separator } from '@/components/ui/separator'
 import { PackageFormDialog } from '@/components/package-form-dialog'
 import { EditClientButton } from '@/components/client-form-dialog'
 import { DeleteClientButton } from '@/components/delete-client-button'
+import EvaluationPreviewCard from '@/components/evaluation-preview-card'
+import EvaluationDetailModal from '@/components/evaluation-detail-modal'
 import { burnSessionAction, deletePackageAction, restoreBurnedSessionAction, updatePackageExpiryAction } from '@/app/dashboard/sessions/actions'
+import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import {
   Mail,
   Phone,
@@ -28,6 +31,7 @@ import {
   StickyNote,
   Trash,
   Loader2,
+  BarChart3,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -109,6 +113,17 @@ export type ClienteConStats = Cliente & {
   esNuevo: boolean
   fechaExpiracionActiva: string | null
   paqueteExpirado: boolean
+}
+
+type EvaluationRecord = {
+  id: string | number
+  cliente_id?: string | null
+  fecha?: string | null
+  creado_en?: string | null
+  imc?: number | null
+  categoria_imc?: string | null
+  objetivo?: string | null
+  [key: string]: any
 }
 
 function comparePackages(a: Paquete, b: Paquete) {
@@ -377,10 +392,55 @@ export function ClientDetailDialog({
   const [restoreTarget, setRestoreTarget] = useState<SesionConsumida | null>(null)
   const [restoreConfirm, setRestoreConfirm] = useState('')
   const [isRestoring, setIsRestoring] = useState(false)
+  const [latestEvaluation, setLatestEvaluation] = useState<EvaluationRecord | null>(null)
+  const [loadingLatestEvaluation, setLoadingLatestEvaluation] = useState(false)
+  const [latestEvaluationError, setLatestEvaluationError] = useState<string | null>(null)
+  const [selectedEvaluation, setSelectedEvaluation] = useState<EvaluationRecord | null>(null)
 
   useEffect(() => {
     setPaginaQuemadas(1)
   }, [filtroFechaQuemadas, showHistorialQuemadas])
+
+  useEffect(() => {
+    if (!open) return
+
+    let active = true
+
+    async function loadLatestEvaluation() {
+      setLoadingLatestEvaluation(true)
+      setLatestEvaluationError(null)
+
+      try {
+        const supabase = createSupabaseClient()
+        const { data, error } = await supabase
+          .from('evaluaciones')
+          .select('*')
+          .eq('cliente_id', cliente.id)
+          .order('creado_en', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (error) throw error
+
+        if (!active) return
+        setLatestEvaluation(data ?? null)
+      } catch (err) {
+        if (!active) return
+        setLatestEvaluation(null)
+        setLatestEvaluationError(err instanceof Error ? err.message : 'No se pudo cargar la evaluación más reciente.')
+      } finally {
+        if (active) setLoadingLatestEvaluation(false)
+      }
+    }
+
+    loadLatestEvaluation()
+
+    return () => {
+      active = false
+    }
+  }, [open, cliente.id])
+
   const ultimoConsumoPorPaquete = useMemo(() => {
     const map = new Map<string, number>()
     sesionesConsumidas.forEach((s) => {
@@ -438,6 +498,7 @@ export function ClientDetailDialog({
       : cliente.genero.charAt(0).toUpperCase() + cliente.genero.slice(1)
     : 'No registrado'
   const observacion = cliente.notas?.trim() ? cliente.notas.trim() : 'Sin observación'
+  const displayClientName = toTitleCase(cliente.nombre_completo)
 
   const agendadas = paqueteActivo
     ? sesionesProgramadas.filter((s) => s.estado === 'programada' && s.paquete_id === paqueteActivo.id).length
@@ -557,7 +618,7 @@ export function ClientDetailDialog({
       </DialogTrigger>
       <DialogContent className="w-[95vw] max-w-3xl sm:w-full max-h-[90vh] overflow-y-auto p-4">
         <DialogHeader className="space-y-1">
-          <DialogTitle className="text-xl">{toTitleCase(cliente.nombre_completo)}</DialogTitle>
+          <DialogTitle className="text-xl">{displayClientName}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-5 pr-1">
@@ -911,9 +972,49 @@ export function ClientDetailDialog({
               <p className="text-sm text-muted-foreground">Sin paquetes registrados aún.</p>
             ) : null}
           </div>
+
+          <div className="grid gap-3 rounded-xl border p-4 bg-background sm:mx-0 mx-1">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <BarChart3 className="h-4 w-4 text-muted-foreground" /> Evaluación más reciente
+            </div>
+
+            {loadingLatestEvaluation ? (
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                <div className="h-24 animate-pulse rounded-lg bg-muted/50" />
+              </div>
+            ) : latestEvaluationError ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {latestEvaluationError}
+              </div>
+            ) : latestEvaluation ? (
+              <EvaluationPreviewCard
+                evaluation={latestEvaluation}
+                clientName={displayClientName}
+                onView={(evaluation) => setSelectedEvaluation(evaluation)}
+                showEditAction={false}
+                showDeleteAction={false}
+                className="hover:shadow-none"
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-5 text-sm text-muted-foreground">
+                Este cliente todavía no tiene evaluaciones registradas.
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    <EvaluationDetailModal
+      open={!!selectedEvaluation}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) setSelectedEvaluation(null)
+      }}
+      evaluation={selectedEvaluation}
+      clientName={displayClientName}
+      clientGender={cliente.genero ?? undefined}
+      clientBirthdate={cliente.fecha_nacimiento ?? undefined}
+    />
 
     <Dialog open={showExtendForm} onOpenChange={setShowExtendForm}>
       <DialogContent className="max-w-md">
