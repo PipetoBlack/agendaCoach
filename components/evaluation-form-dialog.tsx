@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -12,6 +12,10 @@ import {
   serializeEvaluationDate,
 } from '@/lib/evaluation-date'
 
+const TEXT_FIELD_LIMIT = 100
+const NUMERIC_FIELD_LIMIT = 3
+const CONTROL_KEYS = new Set(['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Home', 'End'])
+
 type ClienteMin = {
   id: string
   nombre_completo?: string
@@ -20,6 +24,7 @@ type ClienteMin = {
 }
 
 export default function EvaluationFormDialog({ open, onClose, onSaved, evaluation }: { open: boolean; onClose: () => void; onSaved?: () => void; evaluation?: any }) {
+  const objectiveInputRef = useRef<HTMLInputElement>(null)
   const [clienteId, setClienteId] = useState("");
   const [clientes, setClientes] = useState<ClienteMin[]>([]);
   const [loadingClientes, setLoadingClientes] = useState(false);
@@ -52,6 +57,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
   const [masaMuscularAuto, setMasaMuscularAuto] = useState(true);
   const [masaGrasaAuto, setMasaGrasaAuto] = useState(true);
   const [dirtyFields, setDirtyFields] = useState<Record<string, boolean>>({})
+  const [fieldWarnings, setFieldWarnings] = useState<Record<string, string>>({})
   const isEditing = !!evaluation
   const [resultados, setResultados] = useState<any | null>(null);
   const [errores, setErrores] = useState<string[]>([]);
@@ -176,9 +182,9 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
       if (!cintura || isNaN(Number(cintura)) || Number(cintura) <= 0) errores.push("Cintura inválida");
       if (!cadera || isNaN(Number(cadera)) || Number(cadera) <= 0) errores.push("Cadera inválida");
     }
-    if (meta.length > 255) errores.push("Meta demasiado larga");
+    if (meta.length > TEXT_FIELD_LIMIT) errores.push("Meta demasiado larga");
     if (objetivo.length > 100) errores.push("Objetivo demasiado largo");
-    if (patologias.length > 255) errores.push("Patologías demasiado largas");
+    if (patologias.length > TEXT_FIELD_LIMIT) errores.push("Patologías demasiado largas");
 
     if (errores.length > 0) {
       setErrores(errores);
@@ -220,6 +226,168 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
     setDirtyFields((s) => ({ ...(s || {}), [field]: true }))
   }
 
+  function setFieldWarning(field: string, message?: string) {
+    setFieldWarnings((current) => {
+      const next = { ...current }
+      if (message) next[field] = message
+      else delete next[field]
+      return next
+    })
+  }
+
+  function getFieldClassName(field: string) {
+    return fieldWarnings[field]
+      ? 'border-destructive focus-visible:ring-destructive/30'
+      : ''
+  }
+
+  function handleTextChange(field: string, setter: (value: string) => void) {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value
+      setter(raw.slice(0, TEXT_FIELD_LIMIT))
+      markDirty(field)
+      if (raw.length <= TEXT_FIELD_LIMIT) setFieldWarning(field)
+    }
+  }
+
+  function handleTextKeyDown(field: string, currentValue: string) {
+    return (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || CONTROL_KEYS.has(event.key)) return
+      const hasSelection = event.currentTarget.selectionStart !== event.currentTarget.selectionEnd
+      if (!hasSelection && currentValue.length >= TEXT_FIELD_LIMIT) {
+        event.preventDefault()
+        setFieldWarning(field, `Maximo ${TEXT_FIELD_LIMIT} caracteres`)
+      } else {
+        setFieldWarning(field)
+      }
+    }
+  }
+
+  function handleTextPaste(field: string, currentValue: string, setter: (value: string) => void) {
+    return (event: ClipboardEvent<HTMLInputElement>) => {
+      const pasted = event.clipboardData.getData('text')
+      if (!pasted) return
+
+      const start = event.currentTarget.selectionStart ?? currentValue.length
+      const end = event.currentTarget.selectionEnd ?? currentValue.length
+      const nextValue = `${currentValue.slice(0, start)}${pasted}${currentValue.slice(end)}`
+
+      if (nextValue.length > TEXT_FIELD_LIMIT) {
+        event.preventDefault()
+        setter(nextValue.slice(0, TEXT_FIELD_LIMIT))
+        markDirty(field)
+        setFieldWarning(field, `Maximo ${TEXT_FIELD_LIMIT} caracteres`)
+      } else {
+        setFieldWarning(field)
+      }
+    }
+  }
+
+  function handleNumericChange(field: string, setter: (value: string) => void) {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value
+      const sanitized = raw.replace(/\D/g, '').slice(0, NUMERIC_FIELD_LIMIT)
+      setter(sanitized)
+      markDirty(field)
+
+      if (/\D/.test(raw)) {
+        setFieldWarning(field, 'Solo numeros')
+      } else if (raw.length > NUMERIC_FIELD_LIMIT) {
+        setFieldWarning(field, `Maximo ${NUMERIC_FIELD_LIMIT} digitos`)
+      } else {
+        setFieldWarning(field)
+      }
+    }
+  }
+
+  function handleNumericKeyDown(field: string, currentValue: string) {
+    return (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || CONTROL_KEYS.has(event.key)) return
+
+      const hasSelection = event.currentTarget.selectionStart !== event.currentTarget.selectionEnd
+      if (!/^\d$/.test(event.key)) {
+        event.preventDefault()
+        setFieldWarning(field, 'Solo numeros')
+        return
+      }
+
+      if (!hasSelection && currentValue.length >= NUMERIC_FIELD_LIMIT) {
+        event.preventDefault()
+        setFieldWarning(field, `Maximo ${NUMERIC_FIELD_LIMIT} digitos`)
+        return
+      }
+
+      setFieldWarning(field)
+    }
+  }
+
+  function handleNumericPaste(field: string, currentValue: string, setter: (value: string) => void) {
+    return (event: ClipboardEvent<HTMLInputElement>) => {
+      const pasted = event.clipboardData.getData('text')
+      if (!pasted) return
+
+      const digits = pasted.replace(/\D/g, '')
+      const start = event.currentTarget.selectionStart ?? currentValue.length
+      const end = event.currentTarget.selectionEnd ?? currentValue.length
+      const mergedValue = `${currentValue.slice(0, start)}${digits}${currentValue.slice(end)}`
+      const nextValue = mergedValue.slice(0, NUMERIC_FIELD_LIMIT)
+
+      if (digits !== pasted || mergedValue.length > NUMERIC_FIELD_LIMIT) {
+        event.preventDefault()
+        setter(nextValue)
+        markDirty(field)
+        setFieldWarning(
+          field,
+          digits !== pasted ? 'Solo numeros' : `Maximo ${NUMERIC_FIELD_LIMIT} digitos`
+        )
+      } else {
+        setFieldWarning(field)
+      }
+    }
+  }
+
+  function handlePliegueChange(key: keyof typeof pliegues, warningKey: string) {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      const raw = event.target.value
+      const sanitized = raw.replace(/\D/g, '').slice(0, NUMERIC_FIELD_LIMIT)
+      setPliegues((current) => ({ ...current, [key]: sanitized }))
+      markDirty('pliegues')
+
+      if (/\D/.test(raw)) {
+        setFieldWarning(warningKey, 'Solo numeros')
+      } else if (raw.length > NUMERIC_FIELD_LIMIT) {
+        setFieldWarning(warningKey, `Maximo ${NUMERIC_FIELD_LIMIT} digitos`)
+      } else {
+        setFieldWarning(warningKey)
+      }
+    }
+  }
+
+  function handlePlieguePaste(key: keyof typeof pliegues, warningKey: string, currentValue: string) {
+    return (event: ClipboardEvent<HTMLInputElement>) => {
+      const pasted = event.clipboardData.getData('text')
+      if (!pasted) return
+
+      const digits = pasted.replace(/\D/g, '')
+      const start = event.currentTarget.selectionStart ?? currentValue.length
+      const end = event.currentTarget.selectionEnd ?? currentValue.length
+      const mergedValue = `${currentValue.slice(0, start)}${digits}${currentValue.slice(end)}`
+      const nextValue = mergedValue.slice(0, NUMERIC_FIELD_LIMIT)
+
+      if (digits !== pasted || mergedValue.length > NUMERIC_FIELD_LIMIT) {
+        event.preventDefault()
+        setPliegues((current) => ({ ...current, [key]: nextValue }))
+        markDirty('pliegues')
+        setFieldWarning(
+          warningKey,
+          digits !== pasted ? 'Solo numeros' : `Maximo ${NUMERIC_FIELD_LIMIT} digitos`
+        )
+      } else {
+        setFieldWarning(warningKey)
+      }
+    }
+  }
+
   // when opening for edit, prefill fields from evaluation
   useEffect(() => {
     if (!open) return
@@ -250,6 +418,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
       setMasaMuscularAuto(evaluation.masa_muscular == null)
       setMasaGrasaAuto((evaluation.masa_libre_grasa == null) && (evaluation.masa_grasa == null))
       setDirtyFields({})
+      setFieldWarnings({})
       setErrores([])
       setResultados({
         imc: evaluation.imc ?? null,
@@ -281,6 +450,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
       setMasaMuscularAuto(true)
       setMasaGrasaAuto(true)
       setDirtyFields({})
+      setFieldWarnings({})
       setErrores([])
       setResultados(null)
     }
@@ -543,7 +713,15 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
   }
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl w-[min(100vw-1.5rem,520px)] p-0 overflow-hidden">
+      <DialogContent
+        className="max-w-xl w-[min(100vw-1.5rem,520px)] p-0 overflow-hidden"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          requestAnimationFrame(() => {
+            objectiveInputRef.current?.focus()
+          })
+        }}
+      >
         <DialogTitle asChild>
           <div className="px-4 pt-4 pb-3 border-b bg-muted/40 flex flex-col items-center text-center gap-1">
             <p className="text-xs uppercase tracking-[0.08em] text-muted-foreground">{isEditing ? 'Editar' : 'Nueva'} evaluación</p>
@@ -593,12 +771,22 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
           <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Fecha *</label>
-                <Input type="date" value={fechaEvaluacion} onChange={e => { setFechaEvaluacion(e.target.value); markDirty('fecha') }} />
+                <label className="text-sm font-medium">Objetivo general *</label>
+                <Input
+                  ref={objectiveInputRef}
+                  value={objetivo}
+                  onChange={handleTextChange('objetivo', setObjetivo)}
+                  onKeyDown={handleTextKeyDown('objetivo', objetivo)}
+                  onPaste={handleTextPaste('objetivo', objetivo, setObjetivo)}
+                  maxLength={TEXT_FIELD_LIMIT}
+                  className={getFieldClassName('objetivo')}
+                  aria-invalid={!!fieldWarnings['objetivo']}
+                  placeholder="Ej: bajar grasa, fuerza..."
+                />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium">Objetivo general *</label>
-                <Input value={objetivo} onChange={e => { setObjetivo(e.target.value); markDirty('objetivo') }} maxLength={100} placeholder="Ej: bajar grasa, fuerza..." />
+                <label className="text-sm font-medium">Fecha *</label>
+                <Input type="date" value={fechaEvaluacion} onChange={e => { setFechaEvaluacion(e.target.value); markDirty('fecha') }} />
               </div>
             </div>
 
@@ -612,7 +800,16 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
                 <Button size="sm" variant={!tienePatologias ? "default" : "outline"} onClick={() => setTienePatologias(false)}>No</Button>
               </div>
               {tienePatologias && (
-                <Input value={patologias} onChange={e => { setPatologias(e.target.value); markDirty('patologias') }} maxLength={255} placeholder="Especificar patologías" />
+                <Input
+                  value={patologias}
+                  onChange={handleTextChange('patologias', setPatologias)}
+                  onKeyDown={handleTextKeyDown('patologias', patologias)}
+                  onPaste={handleTextPaste('patologias', patologias, setPatologias)}
+                  maxLength={TEXT_FIELD_LIMIT}
+                  className={getFieldClassName('patologias')}
+                  aria-invalid={!!fieldWarnings['patologias']}
+                  placeholder="Especificar patologías"
+                />
               )}
             </div>
           </div>
@@ -625,11 +822,11 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium mb-1">Peso (kg) *</label>
-                <Input type="number" value={peso} onChange={e => { setPeso(e.target.value); markDirty('peso') }} maxLength={3} min={0} />
+                <Input type="text" inputMode="numeric" pattern="[0-9]*" value={peso} onChange={handleNumericChange('peso', setPeso)} onKeyDown={handleNumericKeyDown('peso', peso)} onPaste={handleNumericPaste('peso', peso, setPeso)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('peso')} aria-invalid={!!fieldWarnings['peso']} />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">Estatura (cm) *</label>
-                <Input type="number" value={estatura} onChange={e => { setEstatura(e.target.value); markDirty('estatura') }} maxLength={3} min={0} />
+                <Input type="text" inputMode="numeric" pattern="[0-9]*" value={estatura} onChange={handleNumericChange('estatura', setEstatura)} onKeyDown={handleNumericKeyDown('estatura', estatura)} onPaste={handleNumericPaste('estatura', estatura, setEstatura)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('estatura')} aria-invalid={!!fieldWarnings['estatura']} />
               </div>
             </div>
 
@@ -648,7 +845,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-medium">% Grasa *</label>
-                <Input type="number" value={porcentajeGrasa} onChange={e => { setPorcentajeGrasa(e.target.value); markDirty('porcentaje_grasa') }} min={0} max={100} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
+                <Input type="text" inputMode="numeric" pattern="[0-9]*" value={porcentajeGrasa} onChange={handleNumericChange('porcentaje_grasa', setPorcentajeGrasa)} onKeyDown={handleNumericKeyDown('porcentaje_grasa', porcentajeGrasa)} onPaste={handleNumericPaste('porcentaje_grasa', porcentajeGrasa, setPorcentajeGrasa)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('porcentaje_grasa')} aria-invalid={!!fieldWarnings['porcentaje_grasa']} disabled={tipoMedicion === 'Caliper'} readOnly={tipoMedicion === 'Caliper'} />
               </div>
             </div>
 
@@ -667,19 +864,19 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium mb-1">Masa muscular (kg)</label>
-                  <Input type="number" value={masaMuscular} onChange={e => { setMasaMuscular(e.target.value); setMasaMuscularAuto(false); markDirty('masa_muscular') }} />
+                  <Input type="text" inputMode="numeric" pattern="[0-9]*" value={masaMuscular} onChange={(event) => { handleNumericChange('masa_muscular', setMasaMuscular)(event); setMasaMuscularAuto(false) }} onKeyDown={handleNumericKeyDown('masa_muscular', masaMuscular)} onPaste={handleNumericPaste('masa_muscular', masaMuscular, setMasaMuscular)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('masa_muscular')} aria-invalid={!!fieldWarnings['masa_muscular']} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">Masa libre de grasa (kg)</label>
-                  <Input type="number" value={masaGrasaKg} onChange={e => { setMasaGrasaKg(e.target.value); setMasaGrasaAuto(false); markDirty('masa_grasa') }} />
+                  <Input type="text" inputMode="numeric" pattern="[0-9]*" value={masaGrasaKg} onChange={(event) => { handleNumericChange('masa_grasa', setMasaGrasaKg)(event); setMasaGrasaAuto(false) }} onKeyDown={handleNumericKeyDown('masa_grasa', masaGrasaKg)} onPaste={handleNumericPaste('masa_grasa', masaGrasaKg, setMasaGrasaKg)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('masa_grasa')} aria-invalid={!!fieldWarnings['masa_grasa']} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">Agua corporal (L)</label>
-                  <Input type="number" value={aguaCorporalKg} onChange={e => { setAguaCorporalKg(e.target.value); markDirty('agua_corporal') }} />
+                  <Input type="text" inputMode="numeric" pattern="[0-9]*" value={aguaCorporalKg} onChange={handleNumericChange('agua_corporal', setAguaCorporalKg)} onKeyDown={handleNumericKeyDown('agua_corporal', aguaCorporalKg)} onPaste={handleNumericPaste('agua_corporal', aguaCorporalKg, setAguaCorporalKg)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('agua_corporal')} aria-invalid={!!fieldWarnings['agua_corporal']} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">Grasa visceral (nivel)</label>
-                  <Input type="number" value={grasaVisceral} onChange={e => { setGrasaVisceral(e.target.value); markDirty('grasa_visceral') }} />
+                  <Input type="text" inputMode="numeric" pattern="[0-9]*" value={grasaVisceral} onChange={handleNumericChange('grasa_visceral', setGrasaVisceral)} onKeyDown={handleNumericKeyDown('grasa_visceral', grasaVisceral)} onPaste={handleNumericPaste('grasa_visceral', grasaVisceral, setGrasaVisceral)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('grasa_visceral')} aria-invalid={!!fieldWarnings['grasa_visceral']} />
                 </div>
               </div>
             )}
@@ -691,10 +888,10 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
                   <div className="text-xs text-muted-foreground">Durnin &amp; Womersley</div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-3">
-                  <Input placeholder="Bicipital" type="number" value={pliegues.bicipital} onChange={e => { setPliegues({ ...pliegues, bicipital: e.target.value }); markDirty('pliegues') }} />
-                  <Input placeholder="Tricipital" type="number" value={pliegues.tricipital} onChange={e => { setPliegues({ ...pliegues, tricipital: e.target.value }); markDirty('pliegues') }} />
-                  <Input placeholder="Subescapular" type="number" value={pliegues.subescapular} onChange={e => { setPliegues({ ...pliegues, subescapular: e.target.value }); markDirty('pliegues') }} />
-                  <Input placeholder="Suprailiaco" type="number" value={pliegues.suprailiaco} onChange={e => { setPliegues({ ...pliegues, suprailiaco: e.target.value }); markDirty('pliegues') }} />
+                  <Input placeholder="Bicipital" type="text" inputMode="numeric" pattern="[0-9]*" value={pliegues.bicipital} onChange={handlePliegueChange('bicipital', 'pliegues_bicipital')} onKeyDown={handleNumericKeyDown('pliegues_bicipital', pliegues.bicipital)} onPaste={handlePlieguePaste('bicipital', 'pliegues_bicipital', pliegues.bicipital)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('pliegues_bicipital')} aria-invalid={!!fieldWarnings['pliegues_bicipital']} />
+                  <Input placeholder="Tricipital" type="text" inputMode="numeric" pattern="[0-9]*" value={pliegues.tricipital} onChange={handlePliegueChange('tricipital', 'pliegues_tricipital')} onKeyDown={handleNumericKeyDown('pliegues_tricipital', pliegues.tricipital)} onPaste={handlePlieguePaste('tricipital', 'pliegues_tricipital', pliegues.tricipital)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('pliegues_tricipital')} aria-invalid={!!fieldWarnings['pliegues_tricipital']} />
+                  <Input placeholder="Subescapular" type="text" inputMode="numeric" pattern="[0-9]*" value={pliegues.subescapular} onChange={handlePliegueChange('subescapular', 'pliegues_subescapular')} onKeyDown={handleNumericKeyDown('pliegues_subescapular', pliegues.subescapular)} onPaste={handlePlieguePaste('subescapular', 'pliegues_subescapular', pliegues.subescapular)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('pliegues_subescapular')} aria-invalid={!!fieldWarnings['pliegues_subescapular']} />
+                  <Input placeholder="Suprailiaco" type="text" inputMode="numeric" pattern="[0-9]*" value={pliegues.suprailiaco} onChange={handlePliegueChange('suprailiaco', 'pliegues_suprailiaco')} onKeyDown={handleNumericKeyDown('pliegues_suprailiaco', pliegues.suprailiaco)} onPaste={handlePlieguePaste('suprailiaco', 'pliegues_suprailiaco', pliegues.suprailiaco)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('pliegues_suprailiaco')} aria-invalid={!!fieldWarnings['pliegues_suprailiaco']} />
                 </div>
               </>
             )}
@@ -713,11 +910,11 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium mb-1">Cintura (cm)</label>
-                  <Input type="number" value={cintura} onChange={e => { setCintura(e.target.value); markDirty('cintura') }} />
+                  <Input type="text" inputMode="numeric" pattern="[0-9]*" value={cintura} onChange={handleNumericChange('cintura', setCintura)} onKeyDown={handleNumericKeyDown('cintura', cintura)} onPaste={handleNumericPaste('cintura', cintura, setCintura)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('cintura')} aria-invalid={!!fieldWarnings['cintura']} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1">Cadera (cm)</label>
-                  <Input type="number" value={cadera} onChange={e => { setCadera(e.target.value); markDirty('cadera') }} />
+                  <Input type="text" inputMode="numeric" pattern="[0-9]*" value={cadera} onChange={handleNumericChange('cadera', setCadera)} onKeyDown={handleNumericKeyDown('cadera', cadera)} onPaste={handleNumericPaste('cadera', cadera, setCadera)} maxLength={NUMERIC_FIELD_LIMIT} className={getFieldClassName('cadera')} aria-invalid={!!fieldWarnings['cadera']} />
                 </div>
               </div>
             )}
@@ -744,7 +941,16 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">Meta propuesta para este mes</span>
             </div>
-            <Input value={meta} onChange={e => { setMeta(e.target.value); markDirty('meta') }} maxLength={255} placeholder="Ej: bajar % grasa en 30 días un 2%" />
+            <Input
+              value={meta}
+              onChange={handleTextChange('meta', setMeta)}
+              onKeyDown={handleTextKeyDown('meta', meta)}
+              onPaste={handleTextPaste('meta', meta, setMeta)}
+              maxLength={TEXT_FIELD_LIMIT}
+              className={getFieldClassName('meta')}
+              aria-invalid={!!fieldWarnings['meta']}
+              placeholder="Ej: bajar grasa este mes"
+            />
           </div>
 
           <div className="pt-2 pb-2">

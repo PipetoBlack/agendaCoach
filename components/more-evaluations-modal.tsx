@@ -157,7 +157,7 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
         <DialogHeader className="items-center pr-8 text-center sm:text-center">
           <DialogTitle className="text-center">Historial de evaluaciones registradas</DialogTitle>
           <DialogDescription className="max-w-xl text-center">
-            Este indicador muestra las evaluaciones que registraste en el mes seleccionado del ano actual, aunque la fecha evaluada pertenezca a otro mes.
+            Aquí verás todas las evaluaciones registradas de este mes, incluso si fueron realizadas en fechas anteriores.
           </DialogDescription>
         </DialogHeader>
 
