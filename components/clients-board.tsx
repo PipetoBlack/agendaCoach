@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { PackageFormDialog } from '@/components/package-form-dialog'
+import ClientEvaluationHistoryDialog from '@/components/client-evaluation-history-dialog'
 import { EditClientButton } from '@/components/client-form-dialog'
 import { DeleteClientButton } from '@/components/delete-client-button'
 import EvaluationPreviewCard from '@/components/evaluation-preview-card'
@@ -416,7 +417,7 @@ export function ClientDetailDialog({
           .from('evaluaciones')
           .select('*')
           .eq('cliente_id', cliente.id)
-          .order('creado_en', { ascending: false })
+          .order('fecha', { ascending: false })
           .order('id', { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -974,8 +975,16 @@ export function ClientDetailDialog({
           </div>
 
           <div className="grid gap-3 rounded-xl border p-4 bg-background sm:mx-0 mx-1">
-            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" /> Evaluación más reciente
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" /> Evaluación más reciente
+              </div>
+              <ClientEvaluationHistoryDialog
+                clientId={cliente.id}
+                clientName={displayClientName}
+                clientGender={cliente.genero ?? undefined}
+                clientBirthdate={cliente.fecha_nacimiento ?? undefined}
+              />
             </div>
 
             {loadingLatestEvaluation ? (
