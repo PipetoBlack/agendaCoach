@@ -7,6 +7,7 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { Separator } from '@/components/ui/separator'
 import { CalendarCheck } from 'lucide-react'
 import { UserMenu } from '@/components/user-menu'
+import { ACTIVATION_ROUTE, isPlanRestricted } from '@/lib/plan'
 
 export default async function EvaluacionLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -25,9 +26,11 @@ export default async function EvaluacionLayout({ children }: { children: React.R
     .single()
 
   const nowIso = new Date().toISOString()
-  const isRestricted = !profile?.estado
-    || profile?.plan_tipo === 'plan_vencido'
-    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+  const isRestricted = isPlanRestricted(profile, nowIso)
+
+  if (isRestricted) {
+    redirect(ACTIVATION_ROUTE)
+  }
 
   return (
     <SidebarProvider>
