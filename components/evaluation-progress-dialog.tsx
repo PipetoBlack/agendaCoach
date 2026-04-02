@@ -458,16 +458,35 @@ export default function EvaluationProgressDialog({ clientId, clientName, buttonC
             </div>
 
             <Tabs defaultValue={metricDefinitions[0].key} className="space-y-3">
-              <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted/60 p-1">
-                {metricDefinitions.map((metric) => (
-                  <TabsTrigger key={metric.key} value={metric.key} className="rounded-lg px-2 py-2 text-xs sm:text-sm">
-                    {metric.title}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-800/80">
+                    Métricas
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Toca para cambiar
+                  </div>
+                </div>
+
+                <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-1">
+                  {metricDefinitions.map((metric) => (
+                    <TabsTrigger
+                      key={metric.key}
+                      value={metric.key}
+                      className="min-h-10 rounded-xl border border-transparent bg-transparent px-2 py-2 text-[13px] font-medium text-slate-600 transition-colors hover:text-slate-900 data-[state=active]:border-emerald-200 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-emerald-100 sm:text-sm"
+                    >
+                      {metric.title}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
 
               {metricDefinitions.map((metric) => (
-                <TabsContent key={metric.key} value={metric.key} className="mt-0">
+                <TabsContent
+                  key={metric.key}
+                  value={metric.key}
+                  className="mt-0 origin-top data-[state=active]:animate-in data-[state=active]:fade-in-0 data-[state=active]:slide-in-from-bottom-1 data-[state=active]:duration-300 motion-reduce:data-[state=active]:animate-none"
+                >
                   <ProgressMetricChart data={progressData} metric={metric} />
                 </TabsContent>
               ))}
