@@ -15,7 +15,6 @@ type EvaluationListItem = {
   cliente_id?: string | null
   fecha: string | null
   creado_en: string | null
-  objetivo?: string | null
   imc?: number | null
   clientName: string
 }
@@ -47,14 +46,6 @@ function formatRegistrationDate(value?: string | null) {
   })
 }
 
-function getRegistrationYear(value?: string | null) {
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-
-  return String(parsed.getFullYear())
-}
-
 function getRegistrationMonthRange(year: number, month: number) {
   const start = new Date(year, month - 1, 1, 0, 0, 0, 0)
   const end = new Date(year, month, 1, 0, 0, 0, 0)
@@ -67,11 +58,10 @@ function getRegistrationMonthRange(year: number, month: number) {
 
 export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect?: (evaluation: any) => void }) {
   const now = new Date()
+  const currentYear = String(now.getFullYear())
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<EvaluationListItem[]>([])
-  const [availableYears, setAvailableYears] = useState<string[]>([String(now.getFullYear())])
   const [selectedMonth, setSelectedMonth] = useState(String(now.getMonth() + 1))
-  const [selectedYear, setSelectedYear] = useState(String(now.getFullYear()))
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -116,52 +106,33 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
           clientMap[client.id] = client.nombre_completo ?? '—'
         })
 
-        const yearsFromClients = new Set<string>([String(new Date().getFullYear())])
-
         if (clientIds.length === 0) {
           if (mounted) {
             setItems([])
-            setAvailableYears(Array.from(yearsFromClients).sort((a, b) => Number(b) - Number(a)))
           }
           return
         }
 
-        const yearNumber = Number(selectedYear)
+        const yearNumber = Number(currentYear)
         const monthNumber = Number(selectedMonth)
         const { start, end } = getRegistrationMonthRange(yearNumber, monthNumber)
 
-        const [monthResponse, allDatesResponse] = await Promise.all([
-          supabase
-            .from('evaluaciones')
-            .select('id, cliente_id, fecha, creado_en, objetivo, imc')
-            .in('cliente_id', clientIds)
-            .gte('creado_en', start)
-            .lt('creado_en', end)
-            .order('creado_en', { ascending: false })
-            .order('id', { ascending: false }),
-          supabase
-            .from('evaluaciones')
-            .select('creado_en')
-            .in('cliente_id', clientIds)
-            .order('creado_en', { ascending: false }),
-        ])
+        const monthResponse = await supabase
+          .from('evaluaciones')
+          .select('id, cliente_id, fecha, creado_en, imc')
+          .in('cliente_id', clientIds)
+          .gte('creado_en', start)
+          .lt('creado_en', end)
+          .order('creado_en', { ascending: false })
+          .order('id', { ascending: false })
 
         if (monthResponse.error) throw monthResponse.error
-        if (allDatesResponse.error) throw allDatesResponse.error
-
-        ;(allDatesResponse.data ?? []).forEach((row: { creado_en?: string | null }) => {
-          const year = getRegistrationYear(row.creado_en)
-          if (year) yearsFromClients.add(year)
-        })
-
-        const sortedYears = Array.from(yearsFromClients).sort((a, b) => Number(b) - Number(a))
         const monthItems = (monthResponse.data ?? []).map((evaluation: any) => ({
           ...evaluation,
           clientName: clientMap[evaluation.cliente_id] ?? '—',
         }))
 
         if (mounted) {
-          setAvailableYears(sortedYears)
           setItems(monthItems)
         }
       } catch (err) {
@@ -176,7 +147,7 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
 
     loadMonth()
     return () => { mounted = false }
-  }, [open, selectedMonth, selectedYear])
+  }, [currentYear, open, selectedMonth])
 
   const selectedMonthLabel = monthOptions.find((month) => month.value === selectedMonth)?.label ?? 'Mes'
 
@@ -186,24 +157,24 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
         <DialogHeader className="items-center pr-8 text-center sm:text-center">
           <DialogTitle className="text-center">Historial de evaluaciones registradas</DialogTitle>
           <DialogDescription className="max-w-xl text-center">
-            Este indicador cuenta las evaluaciones que registraste en el sistema en el mes seleccionado, aunque la fecha evaluada pertenezca a otro mes.
+            Este indicador muestra las evaluaciones que registraste en el mes seleccionado del ano actual, aunque la fecha evaluada pertenezca a otro mes.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr),140px,120px]">
+          <div className="grid grid-cols-[minmax(0,1fr),108px] items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar por nombre"
-                className="pl-9"
+                className="h-10 pl-9"
               />
             </div>
 
             <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10 px-3">
                 <SelectValue placeholder="Mes" />
               </SelectTrigger>
               <SelectContent>
@@ -214,25 +185,12 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
                 ))}
               </SelectContent>
             </Select>
-
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger>
-                <SelectValue placeholder="Año" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableYears.map((year) => (
-                  <SelectItem key={year} value={year}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
             {loading
               ? 'Cargando evaluaciones...'
-              : `${filteredItems.length} evaluacion${filteredItems.length === 1 ? '' : 'es'} ingresadas en ${selectedMonthLabel.toLowerCase()} de ${selectedYear}.`}
+              : `${filteredItems.length} evaluacion${filteredItems.length === 1 ? '' : 'es'} ingresadas en ${selectedMonthLabel.toLowerCase()} de ${currentYear}.`}
           </div>
 
           {error && (
@@ -243,37 +201,36 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
 
           {!loading && !error && items.length === 0 && (
             <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-              No registraste evaluaciones en {selectedMonthLabel.toLowerCase()} de {selectedYear}.
+              No registraste evaluaciones en {selectedMonthLabel.toLowerCase()} de {currentYear}.
             </div>
           )}
 
           {!loading && !error && items.length > 0 && filteredItems.length === 0 && (
             <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-sm text-muted-foreground">
-              No se encontraron clientes con ese nombre dentro de los registros de {selectedMonthLabel.toLowerCase()} de {selectedYear}.
+              No se encontraron clientes con ese nombre dentro de los registros de {selectedMonthLabel.toLowerCase()} de {currentYear}.
             </div>
           )}
 
           <div className="grid max-h-[52vh] gap-2 overflow-y-auto pr-1">
             {filteredItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-background/80 p-3">
-                <div className="min-w-0">
-                  <div className="truncate font-medium text-foreground">{item.clientName}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Fecha evaluada: {formatEvaluationDate(item.fecha)}
-                  </div>
-                  <div className="mt-1 text-xs font-medium text-primary">
-                    Registrada: {formatRegistrationDate(item.creado_en)}
-                  </div>
-                  {item.objetivo ? (
-                    <div className="mt-2 truncate text-xs text-muted-foreground">
-                      Objetivo: {item.objetivo}
+              <div key={item.id} className="rounded-xl border border-border/60 bg-background/80 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-foreground">{item.clientName}</div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      <div className="text-muted-foreground">
+                        Evaluada: {formatEvaluationDate(item.fecha)}
+                      </div>
+                      <div className="font-medium text-primary">
+                        Registrada: {formatRegistrationDate(item.creado_en)}
+                      </div>
                     </div>
-                  ) : null}
-                </div>
+                  </div>
 
-                <Button variant="ghost" onClick={() => { if (onSelect) onSelect(item); onOpenChange(false) }}>
-                  Ver detalle
-                </Button>
+                  <Button variant="ghost" className="shrink-0" onClick={() => { if (onSelect) onSelect(item); onOpenChange(false) }}>
+                    Ver detalle
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
