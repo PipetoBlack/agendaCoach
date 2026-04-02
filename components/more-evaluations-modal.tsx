@@ -167,7 +167,19 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => setSearch(event.target.value.slice(0, 40))}
+                onPaste={(event) => {
+                  const pasted = event.clipboardData.getData('text')
+                  if (!pasted) return
+                  const start = event.currentTarget.selectionStart ?? search.length
+                  const end = event.currentTarget.selectionEnd ?? search.length
+                  const nextValue = `${search.slice(0, start)}${pasted}${search.slice(end)}`
+                  if (nextValue.length > 40) {
+                    event.preventDefault()
+                    setSearch(nextValue.slice(0, 40))
+                  }
+                }}
+                maxLength={40}
                 placeholder="Buscar por nombre"
                 className="h-10 pl-9"
               />
