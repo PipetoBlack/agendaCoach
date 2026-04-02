@@ -15,15 +15,16 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import {
+  AlertCircle,
   Sparkles,
   CalendarCheck,
+  FileText,
   LayoutDashboard,
   Users,
   CalendarDays,
   User2,
   Mail,
   Instagram,
-  AlertCircle,
   ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -43,7 +44,7 @@ const navItems = [
   {
     title: 'Evaluación',
     url: '/evaluacion',
-    icon: AlertCircle,
+    icon: FileText,
   },
   {
     title: 'Agendar sesiones',
