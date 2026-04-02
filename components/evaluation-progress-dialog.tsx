@@ -468,17 +468,20 @@ export default function EvaluationProgressDialog({ clientId, clientName, buttonC
                   </div>
                 </div>
 
-                <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-100 via-emerald-50 to-emerald-100/80 p-1 shadow-sm">
-                  {metricDefinitions.map((metric) => (
-                    <TabsTrigger
-                      key={metric.key}
-                      value={metric.key}
-                      className="min-h-10 rounded-xl border border-transparent bg-transparent px-2 py-2 text-[13px] font-medium text-slate-700 transition-colors hover:bg-white/50 hover:text-slate-900 data-[state=active]:border-emerald-300 data-[state=active]:bg-white data-[state=active]:text-emerald-800 data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-emerald-200 sm:text-sm"
-                    >
-                      {metric.title}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                <div className="rounded-2xl border border-[#34d399] bg-gradient-to-r from-emerald-100 via-emerald-50 to-emerald-100/80 p-[3px] shadow-sm shadow-emerald-200/80 ring-1 ring-[#86efac]" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                  <TabsList className="grid h-auto w-full grid-cols-3 rounded-[calc(1rem-3px)] border-0 bg-white/40 p-1 shadow-none ring-0" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                    {metricDefinitions.map((metric) => (
+                      <TabsTrigger
+                        key={metric.key}
+                        value={metric.key}
+                        className="min-h-10 rounded-xl border border-transparent bg-transparent px-2 py-2 text-[13px] font-medium text-slate-700 outline-none transition-colors [-webkit-appearance:none] [appearance:none] hover:bg-white/50 hover:text-slate-900 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/80 focus-visible:ring-offset-0 data-[state=active]:border-[#34d399] data-[state=active]:bg-white data-[state=active]:text-emerald-800 data-[state=active]:shadow-[0_0_0_1px_rgba(52,211,153,0.9)] sm:text-sm"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        {metric.title}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </div>
               </div>
 
               {metricDefinitions.map((metric) => (
