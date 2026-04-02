@@ -149,7 +149,7 @@ export default function EvaluacionPage() {
         <div className="flex flex-col gap-3">
           <div>
             <h1 className="text-2xl font-bold text-emerald-900">Evaluación de composición corporal</h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">Registra IMC, masa muscular, grasa visceral, agua corporal y perímetros. Guarda y consulta el progreso con una vista simple.</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">Mantén el seguimiento del progreso físico de tus alumnos: guarda y consulta métricas en esta sección o en Gestión de Clientes.</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={() => setOpen(true)} className="gap-2">

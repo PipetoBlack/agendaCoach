@@ -2,7 +2,9 @@
 
 import React from 'react'
 
+import DeleteEvaluationButton from '@/components/delete-evaluation-button'
 import EvaluationDetailModal from '@/components/evaluation-detail-modal'
+import EvaluationFormDialog from '@/components/evaluation-form-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,7 +16,8 @@ import {
 } from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
 import { formatEvaluationDate } from '@/lib/evaluation-date'
-import { History } from 'lucide-react'
+import { Eye, History, Pencil } from 'lucide-react'
+import { toast } from 'sonner'
 
 type EvaluationRecord = {
   id: string | number
@@ -47,11 +50,13 @@ export default function ClientEvaluationHistoryDialog({
   clientName,
   clientGender,
   clientBirthdate,
+  onEvaluationsChanged,
 }: {
   clientId?: string
   clientName?: string
   clientGender?: string
   clientBirthdate?: string
+  onEvaluationsChanged?: () => void
 }) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
@@ -60,6 +65,8 @@ export default function ClientEvaluationHistoryDialog({
   const [totalCount, setTotalCount] = React.useState(0)
   const [page, setPage] = React.useState(1)
   const [selectedEvaluation, setSelectedEvaluation] = React.useState<EvaluationRecord | null>(null)
+  const [editingEvaluation, setEditingEvaluation] = React.useState<EvaluationRecord | null>(null)
+  const [reloadKey, setReloadKey] = React.useState(0)
 
   React.useEffect(() => {
     if (!open || !clientId) return
@@ -104,9 +111,30 @@ export default function ClientEvaluationHistoryDialog({
     return () => {
       active = false
     }
-  }, [clientId, open, page])
+  }, [clientId, open, page, reloadKey])
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
+  async function handleDeleteEvaluation(evaluation: EvaluationRecord) {
+    const supabase = createClient()
+    const { error: deleteError } = await supabase.from('evaluaciones').delete().eq('id', evaluation.id)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    toast.success('Evaluación eliminada')
+
+    if (selectedEvaluation?.id === evaluation.id) {
+      setSelectedEvaluation(null)
+    }
+
+    const remainingCount = Math.max(totalCount - 1, 0)
+    const nextTotalPages = Math.max(1, Math.ceil(remainingCount / PAGE_SIZE))
+    setPage((currentPage) => Math.min(currentPage, nextTotalPages))
+    setReloadKey((currentKey) => currentKey + 1)
+    onEvaluationsChanged?.()
+  }
 
   return (
     <>
@@ -118,6 +146,7 @@ export default function ClientEvaluationHistoryDialog({
             setPage(1)
           } else {
             setSelectedEvaluation(null)
+            setEditingEvaluation(null)
           }
         }}
       >
@@ -170,13 +199,33 @@ export default function ClientEvaluationHistoryDialog({
                         </div>
                       </div>
 
-                      <Button
-                        variant="ghost"
-                        className="shrink-0 px-2 text-sm font-medium"
-                        onClick={() => setSelectedEvaluation(evaluation)}
-                      >
-                        Ver detalle
-                      </Button>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setSelectedEvaluation(evaluation)}
+                          aria-label="Ver detalle"
+                        >
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">Ver detalle</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setEditingEvaluation(evaluation)}
+                          aria-label="Editar evaluación"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Editar evaluación</span>
+                        </Button>
+                        <DeleteEvaluationButton
+                          evaluation={evaluation}
+                          clientName={clientName}
+                          onConfirm={handleDeleteEvaluation}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -211,6 +260,16 @@ export default function ClientEvaluationHistoryDialog({
           </div>
         </DialogContent>
       </Dialog>
+
+      <EvaluationFormDialog
+        open={!!editingEvaluation}
+        onClose={() => setEditingEvaluation(null)}
+        onSaved={() => {
+          setReloadKey((currentKey) => currentKey + 1)
+          onEvaluationsChanged?.()
+        }}
+        evaluation={editingEvaluation}
+      />
 
       <EvaluationDetailModal
         open={!!selectedEvaluation}

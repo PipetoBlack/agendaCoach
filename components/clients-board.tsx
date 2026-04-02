@@ -397,6 +397,7 @@ export function ClientDetailDialog({
   const [loadingLatestEvaluation, setLoadingLatestEvaluation] = useState(false)
   const [latestEvaluationError, setLatestEvaluationError] = useState<string | null>(null)
   const [selectedEvaluation, setSelectedEvaluation] = useState<EvaluationRecord | null>(null)
+  const [latestEvaluationReloadKey, setLatestEvaluationReloadKey] = useState(0)
 
   useEffect(() => {
     setPaginaQuemadas(1)
@@ -440,7 +441,7 @@ export function ClientDetailDialog({
     return () => {
       active = false
     }
-  }, [open, cliente.id])
+  }, [open, cliente.id, latestEvaluationReloadKey])
 
   const ultimoConsumoPorPaquete = useMemo(() => {
     const map = new Map<string, number>()
@@ -984,6 +985,7 @@ export function ClientDetailDialog({
                 clientName={displayClientName}
                 clientGender={cliente.genero ?? undefined}
                 clientBirthdate={cliente.fecha_nacimiento ?? undefined}
+                onEvaluationsChanged={() => setLatestEvaluationReloadKey((currentKey) => currentKey + 1)}
               />
             </div>
 
