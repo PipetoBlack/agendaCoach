@@ -27,6 +27,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 type EvaluationHistoryRow = {
   id: number | string | null
@@ -40,6 +41,9 @@ type MetricKey = 'peso' | 'imc' | 'porcentaje_grasa'
 
 type ProgressPoint = {
   id: string
+  order: number
+  evaluationShortLabel: string
+  evaluationLabel: string
   fecha: string | null
   fechaCorta: string
   fechaCompleta: string
@@ -56,6 +60,8 @@ type MetricDefinition = {
   description: string
   emptyMessage: string
   decimals: number
+  minValid: number
+  maxValid: number
 }
 
 const metricDefinitions: MetricDefinition[] = [
@@ -67,6 +73,8 @@ const metricDefinitions: MetricDefinition[] = [
     description: 'Evolución del peso corporal según las evaluaciones registradas.',
     emptyMessage: 'Todavía no hay registros de peso para mostrar una progresión.',
     decimals: 1,
+    minValid: 20,
+    maxValid: 350,
   },
   {
     key: 'imc',
@@ -76,6 +84,8 @@ const metricDefinitions: MetricDefinition[] = [
     description: 'Seguimiento del índice de masa corporal a lo largo del tiempo.',
     emptyMessage: 'Todavía no hay registros de IMC para mostrar una progresión.',
     decimals: 1,
+    minValid: 10,
+    maxValid: 90,
   },
   {
     key: 'porcentaje_grasa',
@@ -85,8 +95,14 @@ const metricDefinitions: MetricDefinition[] = [
     description: 'Variación del porcentaje de grasa corporal entre evaluaciones.',
     emptyMessage: 'Todavía no hay registros de porcentaje de grasa para mostrar una progresión.',
     decimals: 1,
+    minValid: 2,
+    maxValid: 75,
   },
 ]
+
+type MetricChartPoint = ProgressPoint & {
+  value: number | null
+}
 
 function toNullableNumber(value: unknown): number | null {
   if (value == null || value === '') return null
@@ -136,9 +152,26 @@ function formatAxisTick(value: number) {
   return formatNumber(value, 0)
 }
 
+function sanitizeMetricValue(metric: MetricDefinition, value: number | null) {
+  if (value == null || !Number.isFinite(value)) return null
+  if (value < metric.minValid || value > metric.maxValid) return null
+  return value
+}
+
+function getChangeText(value: number | null, metric: MetricDefinition) {
+  if (value == null) return 'Sin cambio calculable'
+  if (value === 0) return 'Sin variación'
+  return `${value > 0 ? '+' : ''}${formatMetricValue(value, metric.decimals, metric.unit)}`
+}
+
 function buildProgressPoint(row: EvaluationHistoryRow, index: number): ProgressPoint {
+  const order = index + 1
+
   return {
     id: String(row.id ?? index),
+    order,
+    evaluationShortLabel: `E${order}`,
+    evaluationLabel: `Evaluación ${order}`,
     fecha: row.fecha,
     fechaCorta: formatShortDate(row.fecha),
     fechaCompleta: formatLongDate(row.fecha),
@@ -148,57 +181,81 @@ function buildProgressPoint(row: EvaluationHistoryRow, index: number): ProgressP
   }
 }
 
-function ProgressMetricChart({ data, metric }: { data: ProgressPoint[]; metric: MetricDefinition }) {
-  const values = data
-    .map((point) => point[metric.key])
-    .filter((value): value is number => typeof value === 'number')
+function SummaryStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-background/85 px-3 py-3">
+      <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
+      {hint ? <div className="mt-1 text-xs text-muted-foreground">{hint}</div> : null}
+    </div>
+  )
+}
 
-  const hasData = values.length > 0
-  const currentValue = hasData ? values[values.length - 1] : null
-  const deltaValue = values.length > 1 ? values[values.length - 1] - values[0] : null
+function ProgressMetricChart({ data, metric }: { data: ProgressPoint[]; metric: MetricDefinition }) {
+  const chartData: MetricChartPoint[] = data.map((point) => ({
+    ...point,
+    value: sanitizeMetricValue(metric, point[metric.key]),
+  }))
+
+  const validPoints = chartData.filter((point): point is MetricChartPoint & { value: number } => point.value !== null)
+  const hasData = validPoints.length > 0
+  const firstValidPoint = hasData ? validPoints[0] : null
+  const currentPoint = hasData ? validPoints[validPoints.length - 1] : null
+  const deltaValue = validPoints.length > 1 && firstValidPoint && currentPoint
+    ? currentPoint.value - firstValidPoint.value
+    : null
+  const skippedCount = chartData.filter((point) => point[metric.key] != null && point.value === null).length
 
   const chartConfig: ChartConfig = {
-    [metric.key]: {
+    value: {
       label: metric.title,
       color: metric.color,
     },
   }
 
   return (
-    <div className="rounded-xl border border-border/70 bg-background/80 p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="rounded-2xl border border-border/70 bg-background/80 p-4 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-foreground">{metric.title}</h3>
-          <p className="text-xs leading-relaxed text-muted-foreground">{metric.description}</p>
-        </div>
-
-        <div className="rounded-lg bg-muted/35 px-3 py-2 text-left sm:min-w-[140px] sm:text-right">
-          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Actual</div>
-          <div className="mt-1 text-lg font-semibold leading-none text-foreground">
-            {currentValue != null ? formatMetricValue(currentValue, metric.decimals, metric.unit) : '—'}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {deltaValue != null ? `Variación: ${formatDelta(deltaValue, metric.decimals, metric.unit)}` : 'Se necesita más historial'}
-          </div>
+          <h3 className="text-base font-semibold text-foreground">{metric.title}</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">{metric.description}</p>
         </div>
       </div>
 
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <SummaryStat
+          label="Actual"
+          value={currentPoint ? formatMetricValue(currentPoint.value, metric.decimals, metric.unit) : '—'}
+          hint={currentPoint ? `${currentPoint.evaluationLabel} · ${currentPoint.fechaCompleta}` : 'Sin dato válido'}
+        />
+        <SummaryStat
+          label="Cambio total"
+          value={getChangeText(deltaValue, metric)}
+          hint={firstValidPoint ? `Comparado con ${firstValidPoint.evaluationLabel}` : 'Se necesita más historial'}
+        />
+        <SummaryStat
+          label="Trayectoria"
+          value={hasData ? `${validPoints.length} mediciones útiles` : 'Sin datos'}
+          hint={hasData ? `De ${validPoints[0].evaluationShortLabel} a ${validPoints[validPoints.length - 1].evaluationShortLabel}` : 'Sin puntos para graficar'}
+        />
+      </div>
+
       {hasData ? (
-        <ChartContainer config={chartConfig} className="mt-4 h-[190px] w-full aspect-auto">
-          <LineChart data={data} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+        <ChartContainer config={chartConfig} className="mt-5 h-[220px] w-full aspect-auto rounded-xl border border-border/60 bg-background/70 p-2 sm:p-3">
+          <LineChart data={chartData} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="fechaCorta"
+              dataKey="evaluationShortLabel"
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              minTickGap={24}
+              minTickGap={18}
             />
             <YAxis
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              width={36}
+              width={42}
               tickFormatter={(value: number) => formatAxisTick(value)}
             />
             <ChartTooltip
@@ -207,8 +264,9 @@ function ProgressMetricChart({ data, metric }: { data: ProgressPoint[]; metric: 
                 <ChartTooltipContent
                   indicator="line"
                   labelFormatter={(_, payload) => {
-                    const point = payload?.[0]?.payload as ProgressPoint | undefined
-                    return point?.fechaCompleta ?? 'Sin fecha'
+                    const point = payload?.[0]?.payload as MetricChartPoint | undefined
+                    if (!point) return 'Sin fecha'
+                    return `${point.evaluationLabel} · ${point.fechaCompleta}`
                   }}
                   formatter={(value) => {
                     if (typeof value !== 'number') return null
@@ -226,12 +284,12 @@ function ProgressMetricChart({ data, metric }: { data: ProgressPoint[]; metric: 
             />
             <Line
               type="monotone"
-              dataKey={metric.key}
-              stroke={`var(--color-${metric.key})`}
+              dataKey="value"
+              stroke="var(--color-value)"
               strokeWidth={2.5}
               connectNulls
-              dot={{ r: 2.5, fill: `var(--color-${metric.key})` }}
-              activeDot={{ r: 4, fill: `var(--color-${metric.key})` }}
+              dot={{ r: 3, fill: 'var(--color-value)' }}
+              activeDot={{ r: 5, fill: 'var(--color-value)' }}
             />
           </LineChart>
         </ChartContainer>
@@ -240,11 +298,17 @@ function ProgressMetricChart({ data, metric }: { data: ProgressPoint[]; metric: 
           {metric.emptyMessage}
         </div>
       )}
+
+      {skippedCount > 0 ? (
+        <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Se omitieron {skippedCount} registro{skippedCount > 1 ? 's' : ''} atípico{skippedCount > 1 ? 's' : ''} de {metric.title.toLowerCase()} para no distorsionar la trayectoria.
+        </div>
+      ) : null}
     </div>
   )
 }
 
-export default function EvaluationProgressDialog({ clientId, clientName, buttonClassName, iconOnly = false, buttonLabel = 'Progreso' }: { clientId?: string; clientName?: string; buttonClassName?: string; iconOnly?: boolean; buttonLabel?: string }) {
+export default function EvaluationProgressDialog({ clientId, clientName, buttonClassName, iconOnly = false, buttonLabel = 'Ver progreso' }: { clientId?: string; clientName?: string; buttonClassName?: string; iconOnly?: boolean; buttonLabel?: string }) {
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -327,7 +391,7 @@ export default function EvaluationProgressDialog({ clientId, clientName, buttonC
         <DialogHeader className="pr-8 text-left">
           <DialogTitle>Progreso de {clientName ?? 'cliente'}</DialogTitle>
           <DialogDescription>
-            Seguimiento visual de peso, IMC y porcentaje de grasa en las evaluaciones registradas.
+            Vista pensada para leer la trayectoria real del cliente según el orden de sus evaluaciones.
           </DialogDescription>
         </DialogHeader>
 
@@ -353,15 +417,81 @@ export default function EvaluationProgressDialog({ clientId, clientName, buttonC
 
         {!loading && !error && progressData.length > 0 && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-              {progressData.length === 1
-                ? 'Se encontró 1 evaluación registrada. La gráfica se irá enriqueciendo a medida que cargues nuevas mediciones.'
-                : `Se encontraron ${progressData.length} evaluaciones registradas para este cliente.`}
+            <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-background to-background p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    Trayectoria real
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-semibold text-foreground">Resumen del seguimiento</h3>
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      Cada punto representa una evaluación real del cliente. Si hubo varias el mismo día, se ordenaron según el registro para mostrar la secuencia correcta.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-primary/20 bg-background/80 px-4 py-3 text-center">
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Evaluaciones</div>
+                  <div className="mt-1 text-2xl font-semibold text-foreground">{progressData.length}</div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <SummaryStat
+                  label="Primera"
+                  value={progressData[0]?.fechaCompleta ?? '—'}
+                  hint={progressData[0]?.evaluationLabel ?? 'Sin registro'}
+                />
+                <SummaryStat
+                  label="Última"
+                  value={progressData[progressData.length - 1]?.fechaCompleta ?? '—'}
+                  hint={progressData[progressData.length - 1]?.evaluationLabel ?? 'Sin registro'}
+                />
+                <SummaryStat
+                  label="Secuencia"
+                  value={`${progressData[0]?.evaluationShortLabel ?? '—'} a ${progressData[progressData.length - 1]?.evaluationShortLabel ?? '—'}`}
+                  hint={progressData.length === 1 ? 'Solo hay una medición por ahora' : 'Orden cronológico confirmado'}
+                />
+              </div>
+
+              <div className="mt-4">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Línea de evaluaciones</div>
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+                  {progressData.map((point, index) => (
+                    <div
+                      key={point.id}
+                      className={cn(
+                        'min-w-[92px] rounded-xl border px-3 py-2',
+                        index === progressData.length - 1
+                          ? 'border-primary/25 bg-primary/10'
+                          : 'border-border/60 bg-background/80'
+                      )}
+                    >
+                      <div className="text-xs font-semibold text-foreground">{point.evaluationShortLabel}</div>
+                      <div className="mt-1 text-[11px] text-muted-foreground">{point.fechaCorta}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {metricDefinitions.map((metric) => (
-              <ProgressMetricChart key={metric.key} data={progressData} metric={metric} />
-            ))}
+            <Tabs defaultValue={metricDefinitions[0].key} className="space-y-3">
+              <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted/60 p-1">
+                {metricDefinitions.map((metric) => (
+                  <TabsTrigger key={metric.key} value={metric.key} className="rounded-lg px-2 py-2 text-xs sm:text-sm">
+                    {metric.title}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {metricDefinitions.map((metric) => (
+                <TabsContent key={metric.key} value={metric.key} className="mt-0">
+                  <ProgressMetricChart data={progressData} metric={metric} />
+                </TabsContent>
+              ))}
+            </Tabs>
           </div>
         )}
       </DialogContent>

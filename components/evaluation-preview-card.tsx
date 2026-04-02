@@ -69,7 +69,7 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
             <EvaluationProgressDialog
               clientId={evaluation?.cliente_id}
               clientName={clientName}
-              buttonLabel="Evolución"
+              buttonLabel="Ver progreso"
               buttonClassName="h-7 shrink-0 rounded-full border-primary/20 bg-primary/10 px-2.5 text-[11px] font-semibold text-primary hover:bg-primary/15 hover:text-primary"
             />
           </div>
