@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createClient } from '@/lib/supabase/client'
+import { MONTHLY_PLAN_DETAILS, getPlanLabel } from '@/lib/plan'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Eye, EyeOff } from 'lucide-react'
@@ -432,17 +433,7 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <div className="flex items-center justify-between text-foreground">
               <span>Plan</span>
-              <span className="font-medium">
-                {planType === 'trial_14'
-                  ? 'Prueba de 14 días'
-                  : planType === 'trial'
-                    ? 'Prueba de 3 días'
-                    : planType === 'plan_mensual'
-                      ? 'Mensual'
-                      : planType === 'plan_vencido'
-                        ? 'Vencido'
-                        : planType || '—'}
-              </span>
+              <span className="font-medium">{getPlanLabel(planType) || '—'}</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Fecha de inicio</span>
@@ -469,34 +460,34 @@ export function AccountContent({ userId, emailFromAuth, profile }: AccountConten
               </DialogTrigger>
               <DialogContent className="gap-4">
                 <DialogHeader className="space-y-2">
-                  <DialogTitle>Renovar plan mensual</DialogTitle>
+                  <DialogTitle>Renovar {MONTHLY_PLAN_DETAILS.name.toLocaleLowerCase('es-CL')}</DialogTitle>
                   <DialogDescription className="text-base text-foreground">
-                    $4.990/mes
+                    {MONTHLY_PLAN_DETAILS.priceLabel}
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="rounded-md border bg-emerald-50/70 p-4 text-sm">
                   <p className="text-foreground font-semibold">Beneficios de renovar</p>
                   <ul className="mt-2 space-y-1 text-emerald-900">
-                    <li>• Agenda ilimitada y sin restricciones.</li>
-                    <li>• Recordatorios y control de sesiones al día.</li>
-                    <li>• Soporte prioritario y activación exprés.</li>
+                    {MONTHLY_PLAN_DETAILS.benefits.map((benefit) => (
+                      <li key={benefit}>• {benefit}</li>
+                    ))}
                   </ul>
                 </div>
 
                 <div className="space-y-3 text-sm text-muted-foreground">
                   <p className="text-foreground font-medium">Cómo renovar</p>
                   <ol className="list-decimal list-inside space-y-1">
-                    <li>Transfiere $4.990.</li>
-                    <li>Envía el comprobante por WhatsApp.</li>
-                    <li>Tu cuenta se activará en minutos.</li>
+                    {MONTHLY_PLAN_DETAILS.renewalSteps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
                   </ol>
                 </div>
 
                 <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
                   <Button asChild className="w-full sm:w-auto">
                     <a
-                      href="https://wa.me/56987206839?text=Hola%2C%20adjunto%20comprobante%20para%20renovar%20mi%20plan%20mensual.%20Gracias."
+                      href={MONTHLY_PLAN_DETAILS.whatsappHref}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

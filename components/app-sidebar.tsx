@@ -15,6 +15,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import {
+  Sparkles,
   CalendarCheck,
   LayoutDashboard,
   Users,
@@ -25,6 +26,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { ACTIVATION_ROUTE, getPlanLabel } from '@/lib/plan'
 
 const navItems = [
   {
@@ -50,20 +52,10 @@ const accountItem = {
   icon: User2,
 }
 
-function getPlanLabel(planTipo?: string) {
-  if (!planTipo) return 'Sin plan'
-  switch (planTipo) {
-    case 'trial_14':
-      return 'Prueba de 14 días'
-    case 'trial':
-      return 'Prueba'
-    case 'plan_mensual':
-      return 'Plan mensual'
-    case 'plan_vencido':
-      return 'Plan vencido'
-    default:
-      return planTipo
-  }
+const activationItem = {
+  title: 'Activación',
+  url: ACTIVATION_ROUTE,
+  icon: Sparkles,
 }
 
 function getPlanDurationDays(planTipo?: string) {
@@ -132,6 +124,10 @@ export function AppSidebar({
 
   const planStats = computePlanStats(planTipo, planInicio, planFin)
   const planPctClass = planColor(planStats.pctUsed)
+  const visibleNavItems = restricted
+    ? [activationItem, accountItem]
+    : [...navItems, accountItem]
+  const planRoute = restricted ? ACTIVATION_ROUTE : accountItem.url
 
   return (
     <Sidebar>
@@ -146,7 +142,7 @@ export function AppSidebar({
           <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground">Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {(restricted ? [accountItem] : [...navItems, accountItem]).map((item) => (
+              {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -177,7 +173,7 @@ export function AppSidebar({
         <div className="px-3 pb-4 text-sm text-sidebar-muted-foreground space-y-3">
           <button
             onClick={() => {
-              router.push('/dashboard/cuenta')
+              router.push(planRoute)
               if (isMobile) setOpenMobile(false)
             }}
             className="w-full rounded-md border border-sidebar-border bg-sidebar-accent/10 px-3 py-2 text-left transition hover:border-sidebar-accent hover:bg-sidebar-accent/20"
@@ -185,7 +181,7 @@ export function AppSidebar({
             <div className="flex items-center justify-between text-xs font-semibold text-sidebar-foreground">
               <span className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-sidebar-muted-foreground" />
-                Plan actual
+                {restricted ? 'Activar cuenta' : 'Plan actual'}
               </span>
               <span className={`text-xs font-semibold ${planPctClass}`}>
                 {planStats.daysLeft != null ? `${planStats.daysLeft} días restantes` : '—'}

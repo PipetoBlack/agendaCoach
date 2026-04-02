@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SmartSessionPlanner } from '@/components/smart-session-planner'
+import { ACTIVATION_ROUTE, isPlanRestricted } from '@/lib/plan'
 
 export default async function SessionsPage() {
   const supabase = await createClient()
@@ -15,12 +16,10 @@ export default async function SessionsPage() {
     .single()
 
   const nowIso = new Date().toISOString()
-  const isRestricted = !profile?.estado
-    || profile?.plan_tipo === 'plan_vencido'
-    || (!!profile?.plan_fin && profile.plan_fin < nowIso)
+  const isRestricted = isPlanRestricted(profile, nowIso)
 
   if (isRestricted) {
-    redirect('/dashboard/cuenta')
+    redirect(ACTIVATION_ROUTE)
   }
 
   const [clientsRes, packagesRes, scheduledRes] = await Promise.all([
