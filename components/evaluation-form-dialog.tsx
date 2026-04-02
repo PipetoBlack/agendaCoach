@@ -499,6 +499,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
       const payload: any = {
         cliente_id: clienteId,
         fecha: serializeEvaluationDate(fechaEvaluacion) ?? serializeEvaluationDate(getTodayEvaluationDateInputValue()),
+        creado_en: new Date().toISOString(),
         objetivo,
         patologias: patologias || null,
         peso: Number(peso) || null,

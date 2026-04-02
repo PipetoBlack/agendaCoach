@@ -9,6 +9,12 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { History, Plus } from 'lucide-react'
 
+function getEvaluationRegistrationTime(evaluation: any) {
+  const registeredAt = evaluation?.creado_en ? new Date(evaluation.creado_en).getTime() : 0
+  if (Number.isFinite(registeredAt) && registeredAt > 0) return registeredAt
+  return 0
+}
+
 export default function EvaluacionPage() {
   const [open, setOpen] = useState(false)
   const [evaluations, setEvaluations] = useState<any[]>([])
@@ -24,8 +30,8 @@ export default function EvaluacionPage() {
 
   const sortedEvaluations = useMemo(() => {
     return evaluations.slice().sort((a: any, b: any) => {
-      const da = a?.fecha ? new Date(a.fecha).getTime() : 0
-      const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+      const da = getEvaluationRegistrationTime(a)
+      const db = getEvaluationRegistrationTime(b)
       if (db - da !== 0) return db - da
       return (b.id ?? 0) - (a.id ?? 0)
     })
@@ -42,10 +48,41 @@ export default function EvaluacionPage() {
         return
       }
 
+      const { data: clients, error: clientsError } = await supabase
+        .from('clientes')
+        .select('id,nombre_completo,genero,fecha_nacimiento')
+        .eq('usuario_id', user.id)
+        .order('nombre_completo')
+
+      if (clientsError) {
+        setError(clientsError.message)
+        setLoading(false)
+        return
+      }
+
+      const clientIds = Array.from(new Set((clients ?? []).map((client: any) => client.id).filter(Boolean)))
+
+      const map: Record<string, { name: string; genero?: string; fecha_nacimiento?: string }> = {}
+      clients?.forEach((client: any) => {
+        map[client.id] = {
+          name: client.nombre_completo,
+          genero: client.genero,
+          fecha_nacimiento: client.fecha_nacimiento,
+        }
+      })
+      setClientsMap(map)
+
+      if (clientIds.length === 0) {
+        setEvaluations([])
+        setLoading(false)
+        return
+      }
+
       const { data: evals, error } = await supabase
         .from('evaluaciones')
         .select('*')
-        .order('fecha', { ascending: false })
+        .in('cliente_id', clientIds)
+        .order('creado_en', { ascending: false })
         .order('id', { ascending: false })
         .limit(3)
 
@@ -61,28 +98,15 @@ export default function EvaluacionPage() {
         return
       }
 
-      // Ensure evaluations are ordered by fecha desc (más recientes primero)
+      // Ensure evaluations are ordered by registration date desc (últimos ingresos primero)
       const sorted = [...evals].sort((a: any, b: any) => {
-        const da = a?.fecha ? new Date(a.fecha).getTime() : 0
-        const db = b?.fecha ? new Date(b.fecha).getTime() : 0
+        const da = getEvaluationRegistrationTime(a)
+        const db = getEvaluationRegistrationTime(b)
         if (db - da !== 0) return db - da
-        // tie-break by id (newer id first)
         return (b.id ?? 0) - (a.id ?? 0)
       })
 
       setEvaluations(sorted)
-
-      const clientIds = Array.from(new Set(evals.map((e: any) => e.cliente_id).filter(Boolean)))
-      if (clientIds.length > 0) {
-        const { data: clients } = await supabase
-          .from('clientes')
-          .select('id,nombre_completo,genero,fecha_nacimiento')
-          .in('id', clientIds)
-
-        const map: Record<string, { name: string; genero?: string; fecha_nacimiento?: string }> = {}
-        clients?.forEach((c: any) => (map[c.id] = { name: c.nombre_completo, genero: c.genero, fecha_nacimiento: c.fecha_nacimiento }))
-        setClientsMap(map)
-      }
     } catch (err: any) {
       setError(err?.message ?? String(err))
     } finally {
@@ -151,7 +175,7 @@ export default function EvaluacionPage() {
       <section className="space-y-3">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Últimas evaluaciones</h2>
-          <span className="text-xs text-muted-foreground">Ordenadas por más recientes</span>
+          <span className="text-xs text-muted-foreground">Muestra las 3 evaluaciones registradas más recientemente</span>
         </div>
 
         {error && <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md p-3">{error}</div>}
