@@ -26,7 +26,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
-import { ACTIVATION_ROUTE, getPlanLabel } from '@/lib/plan'
+import { ACTIVATION_ROUTE, getPlanLabel, isPlanExpired } from '@/lib/plan'
 
 const navItems = [
   {
@@ -72,14 +72,19 @@ function getPlanDurationDays(planTipo?: string) {
 }
 
 function computePlanStats(planTipo?: string, planInicio?: string, planFin?: string) {
+  const isExpired = planTipo === 'plan_vencido' || isPlanExpired(planFin)
+  if (isExpired) {
+    return { label: 'Plan vencido', daysLeft: null, pctUsed: 100, statusText: 'Vencido' }
+  }
+
   const label = getPlanLabel(planTipo)
-  if (!planInicio || !planFin) return { label, daysLeft: null, pctUsed: null }
+  if (!planInicio || !planFin) return { label, daysLeft: null, pctUsed: null, statusText: null }
 
   const fin = new Date(planFin)
   const start = new Date(planInicio)
   const today = new Date()
   if (isNaN(fin.getTime()) || isNaN(start.getTime())) {
-    return { label, daysLeft: null, pctUsed: null }
+    return { label, daysLeft: null, pctUsed: null, statusText: null }
   }
 
   // Clamp to expected duration for known plans to avoid overstating remaining days when DB dates drift.
@@ -89,13 +94,13 @@ function computePlanStats(planTipo?: string, planInicio?: string, planFin?: stri
 
   const msTotal = effectiveFin.getTime() - start.getTime()
   if (msTotal <= 0) {
-    return { label, daysLeft: 0, pctUsed: 100 }
+    return { label: 'Plan vencido', daysLeft: null, pctUsed: 100, statusText: 'Vencido' }
   }
 
   const daysLeft = Math.max(Math.ceil((effectiveFin.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)), 0)
   const pctUsed = Math.min(100, Math.max(0, ((today.getTime() - start.getTime()) / msTotal) * 100))
 
-  return { label, daysLeft, pctUsed }
+  return { label, daysLeft, pctUsed, statusText: null }
 }
 
 function planColor(pctUsed?: number | null) {
@@ -125,7 +130,7 @@ export function AppSidebar({
   const planStats = computePlanStats(planTipo, planInicio, planFin)
   const planPctClass = planColor(planStats.pctUsed)
   const visibleNavItems = restricted
-    ? [activationItem, accountItem]
+    ? [activationItem]
     : [...navItems, accountItem]
   const planRoute = restricted ? ACTIVATION_ROUTE : accountItem.url
 
@@ -184,7 +189,7 @@ export function AppSidebar({
                 {restricted ? 'Activar cuenta' : 'Plan actual'}
               </span>
               <span className={`text-xs font-semibold ${planPctClass}`}>
-                {planStats.daysLeft != null ? `${planStats.daysLeft} días restantes` : '—'}
+                {planStats.statusText ?? (planStats.daysLeft != null ? `${planStats.daysLeft} días restantes` : '—')}
               </span>
             </div>
             <div className="mt-1 text-sm font-medium text-sidebar-foreground">
