@@ -24,6 +24,7 @@ import {
   Mail,
   Instagram,
   AlertCircle,
+  ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
 import { ACTIVATION_ROUTE, getPlanLabel, isPlanExpired } from '@/lib/plan'
@@ -40,14 +41,14 @@ const navItems = [
     icon: Users,
   },
   {
-    title: 'Agendar sesiones',
-    url: '/dashboard/sessions',
-    icon: CalendarDays,
-  },
-  {
     title: 'Evaluación',
     url: '/evaluacion',
     icon: AlertCircle,
+  },
+  {
+    title: 'Agendar sesiones',
+    url: '/dashboard/sessions',
+    icon: CalendarDays,
   },
 ]
 
@@ -138,25 +139,43 @@ export function AppSidebar({
     ? [activationItem]
     : [...navItems, accountItem]
   const planRoute = restricted ? ACTIVATION_ROUTE : accountItem.url
+  const homeRoute = '/dashboard'
+
+  const handleNavigateHome = () => {
+    router.push(homeRoute)
+    if (isMobile) setOpenMobile(false)
+  }
 
   return (
     <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-3">
-          <CalendarCheck className="h-7 w-7 text-sidebar-primary" />
-          <span className="text-lg font-bold text-sidebar-foreground">AgendaCoach</span>
-        </div>
+      <SidebarHeader className="gap-3 border-b border-sidebar-border/80 px-3 pb-3 pt-3">
+        <button
+          onClick={handleNavigateHome}
+          className="flex w-full items-center justify-between rounded-xl border border-sidebar-border/80 bg-sidebar-accent/10 px-3 py-3 text-left transition hover:border-sidebar-accent hover:bg-sidebar-accent/20"
+          aria-label="Ir al inicio"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sidebar-accent/40 text-sidebar-primary">
+              <CalendarCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="text-lg font-semibold leading-none text-sidebar-foreground">AgendaCoach</div>
+              <div className="mt-1 text-xs text-sidebar-foreground/65">Ir al inicio</div>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-sidebar-foreground/45" />
+        </button>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sm font-semibold text-sidebar-foreground">Navegación</SidebarGroupLabel>
+      <SidebarContent className="px-2 py-2">
+        <SidebarGroup className="px-1">
+          <SidebarGroupLabel className="px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/65">Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1.5">
               {visibleNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    className="h-12 text-base font-medium"
+                    className="h-11 rounded-xl px-3 text-[15px] font-medium text-sidebar-foreground/88 shadow-none hover:bg-sidebar-accent/70 hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_0_0_1px_hsl(var(--sidebar-border))]"
                     isActive={
                       item.url === '/dashboard'
                         ? pathname === '/dashboard'
@@ -179,14 +198,14 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="px-3 pb-4 text-sm text-sidebar-muted-foreground space-y-3">
+      <SidebarFooter className="border-t border-sidebar-border/80 px-3 pb-4 pt-3">
+        <div className="space-y-3 text-sm text-sidebar-muted-foreground">
           <button
             onClick={() => {
               router.push(planRoute)
               if (isMobile) setOpenMobile(false)
             }}
-            className="w-full rounded-md border border-sidebar-border bg-sidebar-accent/10 px-3 py-2 text-left transition hover:border-sidebar-accent hover:bg-sidebar-accent/20"
+            className="w-full rounded-xl border border-sidebar-border/80 bg-sidebar-accent/10 px-3 py-3 text-left transition hover:border-sidebar-accent hover:bg-sidebar-accent/20"
           >
             <div className="flex items-center justify-between text-xs font-semibold text-sidebar-foreground">
               <span className="flex items-center gap-2">
@@ -202,26 +221,22 @@ export function AppSidebar({
             </div>
           </button>
 
-          <div className="flex items-center gap-2">
-            <Instagram className="h-5 w-5" />
-            <a
-              className="underline hover:text-sidebar-foreground"
-              href="https://www.instagram.com/agenda.coach"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Instagram
-            </a>
-          </div>
-          <div className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            <a
-              className="underline hover:text-sidebar-foreground"
-              href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
-            >
-              Soporte y sugerencias
-            </a>
-          </div>
+          <a
+            className="flex items-center gap-2 rounded-lg px-1 py-1 text-sidebar-foreground/82 transition hover:text-sidebar-foreground"
+            href="https://www.instagram.com/agenda.coach"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Instagram className="h-4 w-4" />
+            <span>Instagram</span>
+          </a>
+          <a
+            className="flex items-center gap-2 rounded-lg px-1 py-1 text-sidebar-foreground/82 transition hover:text-sidebar-foreground"
+            href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
+          >
+            <Mail className="h-4 w-4" />
+            <span>Soporte y sugerencias</span>
+          </a>
         </div>
       </SidebarFooter>
     </Sidebar>
