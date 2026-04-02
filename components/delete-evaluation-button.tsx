@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 
 export default function DeleteEvaluationButton({
   evaluation,
@@ -37,7 +38,7 @@ export default function DeleteEvaluationButton({
     })
   }
 
-  const date = evaluation?.fecha ? new Date(evaluation.fecha).toLocaleDateString('es-ES') : ''
+  const date = formatEvaluationDate(evaluation?.fecha)
 
   return (
     <AlertDialog>

@@ -1,4 +1,5 @@
 import React from 'react'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
@@ -18,7 +19,7 @@ export default async function EvaluationDetailPage({ params }: { params: { id: s
 
       <div className="border rounded p-4 bg-card">
         <div className="mb-2"><strong>Cliente:</strong> {client?.nombre_completo ?? '—'}</div>
-        <div className="mb-2"><strong>Fecha:</strong> {evaluation.fecha ? new Date(evaluation.fecha).toLocaleDateString('es-ES') : '—'}</div>
+        <div className="mb-2"><strong>Fecha:</strong> {formatEvaluationDate(evaluation.fecha)}</div>
 
         <div className="grid grid-cols-2 gap-3">
           <div><strong>IMC:</strong> {evaluation.imc ?? '—'}</div>

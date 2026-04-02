@@ -1,5 +1,6 @@
 import React from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
@@ -31,8 +32,7 @@ export default async function HistorialPage() {
 
   const grouped: Record<string, any[]> = {}
   ;sortedEvals.forEach((ev: any) => {
-    const d = ev.fecha ? new Date(ev.fecha) : new Date()
-    const key = d.toLocaleString('es-ES', { month: 'long', year: 'numeric' })
+    const key = formatEvaluationDate(ev.fecha, 'es-ES', { month: 'long', year: 'numeric' })
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(ev)
   })
@@ -50,7 +50,7 @@ export default async function HistorialPage() {
               <div key={ev.id} className="border rounded p-3 flex justify-between items-center">
                 <div>
                   <div className="font-semibold">{clientsMap[ev.cliente_id] ?? '—'}</div>
-                  <div className="text-xs text-muted-foreground">{ev.fecha ? new Date(ev.fecha).toLocaleDateString('es-ES') : ''}</div>
+                  <div className="text-xs text-muted-foreground">{formatEvaluationDate(ev.fecha) === '—' ? '' : formatEvaluationDate(ev.fecha)}</div>
                 </div>
                 <div>
                   <Link href={`/evaluacion/${ev.id}`} className="text-sm font-medium text-primary">Ver detalle</Link>

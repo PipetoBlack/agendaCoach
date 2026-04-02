@@ -7,6 +7,7 @@ import { TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 import {
   ChartContainer,
   ChartTooltip,
@@ -111,24 +112,22 @@ function toNullableNumber(value: unknown): number | null {
 }
 
 function formatShortDate(value: string | null) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-ES', {
+  const formatted = formatEvaluationDate(value, 'es-ES', {
     day: '2-digit',
     month: 'short',
-  }).format(date).replace('.', '')
+  })
+
+  return formatted === '—' ? 'Sin fecha' : formatted.replace('.', '')
 }
 
 function formatLongDate(value: string | null) {
-  if (!value) return 'Sin fecha'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-ES', {
+  const formatted = formatEvaluationDate(value, 'es-ES', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
-  }).format(date)
+  })
+
+  return formatted === '—' ? 'Sin fecha' : formatted
 }
 
 function formatNumber(value: number, decimals: number) {
@@ -388,9 +387,9 @@ export default function EvaluationProgressDialog({ clientId, clientName, buttonC
       )}
 
       <DialogContent className="max-w-3xl">
-        <DialogHeader className="pr-8 text-left">
-          <DialogTitle>Progreso de {clientName ?? 'cliente'}</DialogTitle>
-          <DialogDescription>
+        <DialogHeader className="items-center pr-8 text-center sm:text-center">
+          <DialogTitle className="text-center">Progreso de {clientName ?? 'cliente'}</DialogTitle>
+          <DialogDescription className="max-w-2xl text-center">
             Vista pensada para leer la trayectoria real del cliente según el orden de sus evaluaciones.
           </DialogDescription>
         </DialogHeader>
@@ -456,25 +455,6 @@ export default function EvaluationProgressDialog({ clientId, clientName, buttonC
                 />
               </div>
 
-              <div className="mt-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Línea de evaluaciones</div>
-                <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                  {progressData.map((point, index) => (
-                    <div
-                      key={point.id}
-                      className={cn(
-                        'min-w-[92px] rounded-xl border px-3 py-2',
-                        index === progressData.length - 1
-                          ? 'border-primary/25 bg-primary/10'
-                          : 'border-border/60 bg-background/80'
-                      )}
-                    >
-                      <div className="text-xs font-semibold text-foreground">{point.evaluationShortLabel}</div>
-                      <div className="mt-1 text-[11px] text-muted-foreground">{point.fechaCorta}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
 
             <Tabs defaultValue={metricDefinitions[0].key} className="space-y-3">

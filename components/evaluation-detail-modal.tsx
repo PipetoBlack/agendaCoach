@@ -3,6 +3,7 @@
 import React from 'react'
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 
 function imcColor(category?: string) {
   if (!category) return 'bg-gray-100 text-gray-800'
@@ -60,7 +61,7 @@ function visceralCategory(visc?: number | null) {
 
 export default function EvaluationDetailModal({ open, onOpenChange, evaluation, clientName, clientGender, clientBirthdate: clientBirthdateProp }: { open: boolean; onOpenChange: (open: boolean) => void; evaluation: any; clientName?: string; clientGender?: string; clientBirthdate?: string }) {
   if (!evaluation) return null
-  const fecha = evaluation?.fecha ? new Date(evaluation.fecha).toLocaleDateString('es-ES') : '—'
+  const fecha = formatEvaluationDate(evaluation?.fecha)
 
   // Accept optional client birthdate via evaluation or props
   // (page should pass client fecha_nacimiento when opening modal)

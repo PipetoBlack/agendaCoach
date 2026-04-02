@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { createClient } from '@/lib/supabase/client'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 
 export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: { open: boolean; onOpenChange: (open: boolean) => void; onSelect?: (evaluation: any) => void }) {
   const [loading, setLoading] = useState(false)
@@ -80,7 +81,7 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
               <div key={it.id} className="flex items-center justify-between border rounded p-2">
                 <div>
                   <div className="font-medium">{it.clientName}</div>
-                  <div className="text-xs text-muted-foreground">{it.fecha ? new Date(it.fecha).toLocaleDateString('es-ES') : ''}</div>
+                  <div className="text-xs text-muted-foreground">{formatEvaluationDate(it.fecha) === '—' ? '' : formatEvaluationDate(it.fecha)}</div>
                 </div>
                 <div>
                   <Button variant="ghost" onClick={() => { if (onSelect) onSelect(it); onOpenChange(false) }}>Ver detalle</Button>

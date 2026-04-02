@@ -5,6 +5,7 @@ import React from 'react'
 import { Pencil, Eye } from 'lucide-react'
 import DeleteEvaluationButton from '@/components/delete-evaluation-button'
 import EvaluationProgressDialog from '@/components/evaluation-progress-dialog'
+import { formatEvaluationDate } from '@/lib/evaluation-date'
 
 function initialsFromName(name?: string) {
   if (!name) return '—'
@@ -23,9 +24,7 @@ function imcBadgeClass(cat?: string) {
 }
 
 export default function EvaluationPreviewCard({ evaluation, clientName, onView, onEdit, onDelete }: { evaluation: any; clientName?: string; onView?: (evaluation: any) => void; onEdit?: (evaluation: any) => void; onDelete?: (evaluation: any) => void }) {
-  const date = evaluation?.fecha
-    ? new Date(evaluation.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : ''
+  const date = formatEvaluationDate(evaluation?.fecha, 'es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const initials = initialsFromName(clientName)
   const categoria = evaluation?.categoria_imc ?? ''
   const badgeClass = imcBadgeClass(categoria)
@@ -40,7 +39,7 @@ export default function EvaluationPreviewCard({ evaluation, clientName, onView, 
           </div>
           <div className="min-w-0 space-y-0.5">
             <div className="truncate font-semibold leading-tight">{clientName ?? '—'}</div>
-            <div className="text-xs text-muted-foreground">{date}</div>
+            <div className="text-xs text-muted-foreground">{date === '—' ? '' : date}</div>
           </div>
         </div>
 

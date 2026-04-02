@@ -5,6 +5,12 @@ import { Input } from "./ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import {
+  getEvaluationDateInputValue,
+  getTodayEvaluationDateInputValue,
+  isValidEvaluationDateInput,
+  serializeEvaluationDate,
+} from '@/lib/evaluation-date'
 
 type ClienteMin = {
   id: string
@@ -36,8 +42,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
   const [cadera, setCadera] = useState("");
   const [meta, setMeta] = useState("");
   const [fechaEvaluacion, setFechaEvaluacion] = useState<string>(() => {
-    const d = new Date()
-    return d.toISOString().slice(0, 10) // YYYY-MM-DD for date input
+    return getTodayEvaluationDateInputValue()
   })
   // InBody-specific fields
   const [masaMuscular, setMasaMuscular] = useState("");
@@ -153,7 +158,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
     // Validaciones básicas
     if (!clienteId) errores.push("Selecciona un cliente");
     // Fecha obligatoria
-    if (!fechaEvaluacion || isNaN(new Date(fechaEvaluacion).getTime())) errores.push("Fecha inválida");
+    if (!isValidEvaluationDateInput(fechaEvaluacion)) errores.push("Fecha inválida");
     if (!objetivo) errores.push("El objetivo es obligatorio");
     if (!peso || isNaN(Number(peso)) || Number(peso) <= 0) errores.push("Peso inválido");
     if (!estatura || isNaN(Number(estatura)) || Number(estatura) <= 0) errores.push("Estatura inválida");
@@ -220,7 +225,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
     if (!open) return
     if (evaluation) {
       setClienteId(evaluation.cliente_id ?? "")
-      setFechaEvaluacion(evaluation.fecha ? new Date(evaluation.fecha).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10))
+      setFechaEvaluacion(getEvaluationDateInputValue(evaluation.fecha) || getTodayEvaluationDateInputValue())
       setObjetivo(evaluation.objetivo ?? "")
       setPatologias(evaluation.patologias ?? "")
       setTienePatologias(!!evaluation.patologias)
@@ -256,6 +261,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
     } else {
       // new evaluation -> reset fields
       setClienteId("")
+      setFechaEvaluacion(getTodayEvaluationDateInputValue())
       setObjetivo("")
       setPatologias("")
       setTienePatologias(false)
@@ -289,7 +295,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
 
     // Requisitos mínimos para mostrar resultados
     if (!clienteId) { setResultados(null); return {} }
-    if (!fechaEvaluacion || isNaN(new Date(fechaEvaluacion).getTime())) { setResultados(null); return {} }
+    if (!isValidEvaluationDateInput(fechaEvaluacion)) { setResultados(null); return {} }
     if (!objetivo) { setResultados(null); return {} }
     if (!(pesoNum > 0) || !(estaturaNum > 0)) { setResultados(null); return {} }
 
@@ -416,7 +422,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
         // Build partial payload only with fields the user modified (dirtyFields)
         const payload: any = {}
         if (dirtyFields['cliente_id']) payload.cliente_id = clienteId || null
-        if (dirtyFields['fecha']) payload.fecha = fechaEvaluacion ? new Date(fechaEvaluacion).toISOString() : null
+        if (dirtyFields['fecha']) payload.fecha = serializeEvaluationDate(fechaEvaluacion)
         if (dirtyFields['objetivo']) payload.objetivo = objetivo || null
         if (dirtyFields['patologias']) payload.patologias = patologias || null
         if (dirtyFields['peso']) payload.peso = peso ? Number(peso) : null
@@ -492,7 +498,7 @@ export default function EvaluationFormDialog({ open, onClose, onSaved, evaluatio
 
       const payload: any = {
         cliente_id: clienteId,
-        fecha: fechaEvaluacion ? new Date(fechaEvaluacion).toISOString() : new Date().toISOString(),
+        fecha: serializeEvaluationDate(fechaEvaluacion) ?? serializeEvaluationDate(getTodayEvaluationDateInputValue()),
         objetivo,
         patologias: patologias || null,
         peso: Number(peso) || null,
