@@ -119,7 +119,7 @@ export default function MoreEvaluationsModal({ open, onOpenChange, onSelect }: {
 
         const monthResponse = await supabase
           .from('evaluaciones')
-          .select('id, cliente_id, fecha, creado_en, imc')
+          .select('*')
           .in('cliente_id', clientIds)
           .gte('creado_en', start)
           .lt('creado_en', end)
