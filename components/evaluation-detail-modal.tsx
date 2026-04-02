@@ -88,23 +88,21 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
     return g ?? '—'
   }
 
-  function computeBMR(weightKg: number | null | undefined, ageYears: number | null | undefined, gender?: string) {
-    if (!weightKg || !ageYears) return null
+  function computeBMR(weightKg: number | null | undefined, ageYears: number | null | undefined, gender?: string, heightCm?: number | null | undefined) {
+    if (weightKg == null || ageYears == null || heightCm == null) return null
     const g = normalizeGender(gender)
     const w = Number(weightKg)
     const a = Number(ageYears)
-    if (isNaN(w) || isNaN(a)) return null
+    const h = Number(heightCm)
+    if (isNaN(w) || isNaN(a) || isNaN(h)) return null
 
-    // Schofield (FAO/WHO) approximation for adults
+    // Use Mifflin–St Jeor equation: BMR = 10*w + 6.25*h - 5*a + s
+    // where s = +5 for males, -161 for females
     if (g === 'male') {
-      if (a >= 18 && a <= 29) return Math.round((15.057 * w + 692.2))
-      if (a <= 59) return Math.round((11.472 * w + 873.1))
-      return Math.round((11.711 * w + 587.7))
+      return Math.round(10 * w + 6.25 * h - 5 * a + 5)
     }
     if (g === 'female') {
-      if (a >= 18 && a <= 29) return Math.round((14.818 * w + 486.6))
-      if (a <= 59) return Math.round((8.126 * w + 845.6))
-      return Math.round((9.082 * w + 658.5))
+      return Math.round(10 * w + 6.25 * h - 5 * a - 161)
     }
     return null
   }
@@ -225,8 +223,20 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                 <div>{(() => {
                   const ageForBmr = age
                   const weight = evaluation?.peso ?? null
-                  const bmr = computeBMR(weight, ageForBmr, clientGender)
-                  return bmr != null ? `${bmr} kcal/día` : '—'
+                  const height = evaluation?.estatura ?? evaluation?.altura ?? null
+                  const gender = clientGender ?? evaluation?.cliente_genero ?? evaluation?.genero ?? null
+
+                  const missing: string[] = []
+                  if (ageForBmr == null) missing.push('edad')
+                  if (height == null || height === '' || isNaN(Number(height))) missing.push('estatura')
+                  if (weight == null || weight === '' || isNaN(Number(weight))) missing.push('peso')
+                  const normGender = normalizeGender(gender)
+                  if (normGender === 'unknown') missing.push('género')
+
+                  const bmr = computeBMR(weight, ageForBmr, gender, height)
+                  if (bmr != null) return `${bmr} kcal/día`
+                  if (missing.length > 0) return `Faltan datos: ${missing.join(', ')}`
+                  return '—'
                 })()}</div>
               </div>
             </div>
@@ -393,14 +403,7 @@ export default function EvaluationDetailModal({ open, onOpenChange, evaluation, 
                 <div className="text-muted-foreground">Cadera (cm)</div>
                 <div>{evaluation?.cadera ?? '—'}</div>
               </div>
-              <div>
-                <div className="text-muted-foreground">ICE</div>
-                <div>{evaluation?.ice ?? '—'}</div>
-              </div>
-              <div>
-                <div className="text-muted-foreground">ICC</div>
-                <div>{evaluation?.icc ?? '—'}</div>
-              </div>
+              
               <div className="col-span-2">
                 <div className="text-muted-foreground">Pliegues (mm)</div>
                 <div className="grid grid-cols-2 gap-2 mt-1 text-sm">

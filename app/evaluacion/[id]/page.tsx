@@ -31,8 +31,7 @@ export default async function EvaluationDetailPage({ params }: { params: { id: s
           <div><strong>Grasa visceral:</strong> {evaluation.grasa_visceral ?? '—'}</div>
           <div><strong>Cintura (cm):</strong> {evaluation.cintura ?? '—'}</div>
           <div><strong>Cadera (cm):</strong> {evaluation.cadera ?? '—'}</div>
-          <div><strong>ICC:</strong> {evaluation.icc ?? '—'}</div>
-          <div><strong>ICE:</strong> {evaluation.ice ?? '—'}</div>
+          
           <div className="col-span-2"><strong>Objetivo:</strong> {evaluation.objetivo ?? '—'}</div>
           <div className="col-span-2"><strong>Patologías:</strong> {evaluation.patologias ?? '—'}</div>
           <div className="col-span-2"><strong>Meta:</strong> {evaluation.meta ?? '—'}</div>
