@@ -31,3 +31,10 @@ pnpm-debug.log*
 
 # Coverage / testing
 coverage/
+
+
+
+# TypeScript build info
+*.tsbuildinfo
+
+app/icon.svg

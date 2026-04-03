@@ -9,8 +9,12 @@ const _inter = Inter({ subsets: ['latin'], variable: '--font-inter', weight: ['4
 const _poppins = Poppins({ subsets: ['latin'], variable: '--font-poppins', weight: ['400', '600'] })
 
 export const metadata: Metadata = {
-  title: 'AgendaCoach - Gestiona tu práctica de coaching',
-  description: 'Agenda de sesiones y gestión de clientes para coaches, terapeutas y consultores.',
+  title: 'AgendaCoach - Automatiza tu gestión de coaching',
+  description: 'Planifica, organiza y gestiona tu práctica de coaching con AgendaCoach.',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    shortcut: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
 }
 
 export const viewport: Viewport = {
