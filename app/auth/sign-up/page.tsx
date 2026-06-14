@@ -131,13 +131,8 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center bg-muted p-6 md:p-10">
-      <div className="w-full max-w-sm">
+    <div className="w-full max-w-sm">
         <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-center gap-2">
-            <CalendarCheck className="h-8 w-8 text-primary" />
-            <span className="font-heading text-2xl font-bold text-foreground">AgendaCoach</span>
-          </div>
           <Card>
             <CardHeader>
               <CardTitle className="font-heading text-2xl">Crea tu cuenta</CardTitle>
@@ -304,16 +299,6 @@ export default function SignUpPage() {
             </CardContent>
           </Card>
         </div>
-        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Mail className="h-4 w-4" />
-          <a
-            className="underline hover:text-foreground"
-            href="mailto:agendacoachf@gmail.com?subject=Soporte%20y%20sugerencias"
-          >
-            Soporte o sugerencias
-          </a>
-        </div>
       </div>
-    </div>
   )
 }

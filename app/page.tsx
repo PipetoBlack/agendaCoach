@@ -97,29 +97,8 @@ export default async function Page() {
           </div>
         </div>
 
-        {/* Features */}
-        <div className="max-w-4xl mx-auto mt-24 w-full">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-8">
-            Todo lo que necesitas
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {features.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="rounded-2xl border border-slate-100 bg-white p-5 text-left shadow-sm"
-              >
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50">
-                  <Icon className="h-5 w-5 text-emerald-600" />
-                </div>
-                <p className="font-semibold text-foreground text-sm mb-1">{title}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Demo CTA */}
-        <div className="max-w-2xl mx-auto mt-16 w-full">
+        <div className="max-w-2xl mx-auto mt-10 w-full">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-8 flex flex-col items-center gap-4 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100">
               <Calendar className="h-6 w-6 text-emerald-600" />
@@ -140,6 +119,27 @@ export default async function Page() {
                 Agendar una demo
               </a>
             </Button>
+          </div>
+        </div>
+
+        {/* Features */}
+        <div className="max-w-4xl mx-auto mt-16 w-full">
+          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-8">
+            Todo lo que necesitas
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {features.map(({ icon: Icon, title, description }) => (
+              <div
+                key={title}
+                className="rounded-2xl border border-slate-100 bg-white p-5 text-left shadow-sm"
+              >
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50">
+                  <Icon className="h-5 w-5 text-emerald-600" />
+                </div>
+                <p className="font-semibold text-foreground text-sm mb-1">{title}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </main>
