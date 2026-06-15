@@ -170,6 +170,340 @@ export async function removeEjercicioDeDia(ejercicioRutinaId: string, rutinaId: 
   return { ok: true }
 }
 
+// ── Plantillas (rutinas sin cliente) ─────────────────────────────────────────
+
+type EjercicioPlantilla = {
+  ejercicioId: string | null
+  nombreCustom: string | null
+  series: number
+  repeticiones: string
+  peso: string
+  descansoSegundos: number
+  modalidad: string
+  descansoSerie: number | null
+}
+
+type DiaPlantilla = {
+  nombre: string
+  tipo: string
+  foco: string
+  ejercicios: EjercicioPlantilla[]
+}
+
+export async function createPlantillaCompleta(data: {
+  nombre: string
+  nivel: string
+  notas: string
+  dias: DiaPlantilla[]
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: rutina, error: rutinaError } = await supabase
+    .from('rutinas')
+    .insert({
+      usuario_id: user.id,
+      cliente_id: null,
+      nombre: data.nombre.trim(),
+      nivel: data.nivel || null,
+      notas: data.notas?.trim() || null,
+      fecha_inicio: null,
+      fecha_fin: null,
+    })
+    .select('id')
+    .single()
+
+  if (rutinaError) return { error: rutinaError.message }
+
+  for (let i = 0; i < data.dias.length; i++) {
+    const dia = data.dias[i]
+    const { data: rutinaDia, error: diaError } = await supabase
+      .from('rutina_dias')
+      .insert({ rutina_id: rutina.id, nombre: dia.nombre, tipo: dia.tipo, foco: dia.foco, orden: i })
+      .select('id')
+      .single()
+
+    if (diaError) return { error: diaError.message }
+
+    if (dia.ejercicios.length > 0) {
+      const { error: ejError } = await supabase
+        .from('rutina_ejercicios')
+        .insert(
+          dia.ejercicios.map((ej, idx) => ({
+            rutina_dia_id: rutinaDia.id,
+            ejercicio_id: ej.ejercicioId || null,
+            nombre_custom: ej.nombreCustom || null,
+            series: ej.series,
+            repeticiones: ej.repeticiones,
+            peso: ej.peso || null,
+            descanso_segundos: ej.descansoSegundos,
+            modalidad: ej.modalidad ?? 'repeticion',
+            descanso_serie: ej.descansoSerie ?? null,
+            orden: idx,
+          }))
+        )
+      if (ejError) return { error: ejError.message }
+    }
+  }
+
+  revalidatePath('/dashboard/rutinas')
+  return { id: rutina.id }
+}
+
+export async function updatePlantillaCompleta(plantillaId: string, data: {
+  nombre: string
+  nivel: string
+  notas: string
+  tipo: string
+  diaId: string | null
+  ejerciciosToRemove: string[]
+  ejerciciosToAdd: Array<{
+    ejercicioId: string | null
+    nombreCustom: string | null
+    series: number
+    repeticiones: string
+    peso: string
+    descansoSegundos: number
+    modalidad: string
+    descansoSerie: number | null
+  }>
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error: rutinaError } = await supabase
+    .from('rutinas')
+    .update({ nombre: data.nombre.trim(), nivel: data.nivel || null, notas: data.notas?.trim() || null })
+    .eq('id', plantillaId)
+    .eq('usuario_id', user.id)
+    .is('cliente_id', null)
+  if (rutinaError) return { error: rutinaError.message }
+
+  if (data.tipo && data.diaId) {
+    const { error: diaError } = await supabase
+      .from('rutina_dias').update({ tipo: data.tipo }).eq('id', data.diaId)
+    if (diaError) return { error: diaError.message }
+  }
+
+  if (data.ejerciciosToRemove.length > 0) {
+    const { error } = await supabase
+      .from('rutina_ejercicios').delete().in('id', data.ejerciciosToRemove)
+    if (error) return { error: error.message }
+  }
+
+  if (data.ejerciciosToAdd.length > 0 && data.diaId) {
+    const { data: ordenData } = await supabase
+      .from('rutina_ejercicios').select('orden').eq('rutina_dia_id', data.diaId)
+      .order('orden', { ascending: false }).limit(1)
+    const baseOrden = ordenData?.[0]?.orden != null ? ordenData[0].orden + 1 : 0
+    const { error } = await supabase.from('rutina_ejercicios').insert(
+      data.ejerciciosToAdd.map((ej, idx) => ({
+        rutina_dia_id: data.diaId!,
+        ejercicio_id: ej.ejercicioId || null,
+        nombre_custom: ej.nombreCustom || null,
+        series: ej.series,
+        repeticiones: ej.repeticiones,
+        peso: ej.peso || null,
+        descanso_segundos: ej.descansoSegundos,
+        modalidad: ej.modalidad ?? 'repeticion',
+        descanso_serie: ej.descansoSerie ?? null,
+        orden: baseOrden + idx,
+      }))
+    )
+    if (error) return { error: error.message }
+  }
+
+  revalidatePath('/dashboard/rutinas')
+  return { ok: true }
+}
+
+export async function updatePlantilla(plantillaId: string, data: {
+  nombre: string
+  nivel: string
+  notas: string
+  tipo: string
+  diaId: string | null
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('rutinas')
+    .update({ nombre: data.nombre.trim(), nivel: data.nivel || null, notas: data.notas?.trim() || null })
+    .eq('id', plantillaId)
+    .eq('usuario_id', user.id)
+    .is('cliente_id', null)
+
+  if (error) return { error: error.message }
+
+  if (data.tipo && data.diaId) {
+    await supabase.from('rutina_dias').update({ tipo: data.tipo }).eq('id', data.diaId)
+  }
+
+  revalidatePath('/dashboard/rutinas')
+  return { ok: true }
+}
+
+export async function deletePlantilla(plantillaId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('rutinas')
+    .delete()
+    .eq('id', plantillaId)
+    .eq('usuario_id', user.id)
+    .is('cliente_id', null)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/dashboard/rutinas')
+  return { ok: true }
+}
+
+// ── Asignar plantilla a cliente ──────────────────────────────────────────────
+
+export async function asignarPlantillaACliente(data: {
+  plantillaId: string
+  clienteId: string
+  fechaInicio: string
+  fechaFin: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: plantillaRaw } = await supabase
+    .from('rutinas')
+    .select(`
+      nombre, nivel, notas,
+      rutina_dias(
+        nombre, tipo, foco, orden,
+        rutina_ejercicios(
+          ejercicio_id, nombre_custom, series, repeticiones, peso, descanso_segundos, modalidad, descanso_serie, orden
+        )
+      )
+    `)
+    .eq('id', data.plantillaId)
+    .eq('usuario_id', user.id)
+    .is('cliente_id', null)
+    .single()
+
+  if (!plantillaRaw) return { error: 'Plantilla no encontrada' }
+
+  type EjData = { ejercicio_id: string | null; nombre_custom: string | null; series: number; repeticiones: string; peso: string | null; descanso_segundos: number; modalidad: string; descanso_serie: number | null; orden: number }
+  type DiaData = { nombre: string; tipo: string; foco: string; orden: number; rutina_ejercicios: EjData[] }
+  type PlantillaData = { nombre: string; nivel: string | null; notas: string | null; rutina_dias: DiaData[] }
+  const plantilla = plantillaRaw as unknown as PlantillaData
+
+  const { data: nuevaRutina, error: rutinaError } = await supabase
+    .from('rutinas')
+    .insert({
+      usuario_id: user.id,
+      cliente_id: data.clienteId,
+      nombre: plantilla.nombre,
+      nivel: plantilla.nivel,
+      notas: plantilla.notas,
+      fecha_inicio: data.fechaInicio,
+      fecha_fin: data.fechaFin,
+    })
+    .select('id')
+    .single()
+
+  if (rutinaError) return { error: rutinaError.message }
+
+  for (const dia of plantilla.rutina_dias ?? []) {
+    const { data: nuevoDia, error: diaError } = await supabase
+      .from('rutina_dias')
+      .insert({ rutina_id: nuevaRutina.id, nombre: dia.nombre, tipo: dia.tipo, foco: dia.foco, orden: dia.orden })
+      .select('id')
+      .single()
+
+    if (diaError) return { error: diaError.message }
+
+    const ejercicios = dia.rutina_ejercicios ?? []
+    if (ejercicios.length > 0) {
+      const { error: ejError } = await supabase
+        .from('rutina_ejercicios')
+        .insert(ejercicios.map(ej => ({
+          rutina_dia_id: nuevoDia.id,
+          ejercicio_id: ej.ejercicio_id || null,
+          nombre_custom: ej.nombre_custom || null,
+          series: ej.series,
+          repeticiones: ej.repeticiones,
+          peso: ej.peso || null,
+          descanso_segundos: ej.descanso_segundos,
+          modalidad: ej.modalidad ?? 'repeticion',
+          descanso_serie: ej.descanso_serie ?? null,
+          orden: ej.orden,
+        })))
+      if (ejError) return { error: ejError.message }
+    }
+  }
+
+  revalidatePath(`/dashboard/rutinas/${data.clienteId}`)
+  return { id: nuevaRutina.id }
+}
+
+// ── Biblioteca de ejercicios propios ─────────────────────────────────────────
+
+export async function createEjercicioPropio(data: { nombre: string; grupo_muscular: string }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase.from('ejercicios').insert({
+    usuario_id: user.id,
+    nombre: data.nombre,
+    grupo_muscular: data.grupo_muscular,
+    categoria: 'funcional',
+    foco: 'general',
+    es_global: false,
+  })
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/rutinas')
+  return { error: null }
+}
+
+export async function deleteEtiquetaCustom(grupoMuscular: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase
+    .from('ejercicios')
+    .delete()
+    .eq('usuario_id', user.id)
+    .eq('grupo_muscular', grupoMuscular)
+    .eq('es_global', false)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/rutinas')
+  return { error: null }
+}
+
+export async function deleteEjercicioPropio(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autenticado' }
+
+  const { error } = await supabase
+    .from('ejercicios')
+    .delete()
+    .eq('id', id)
+    .eq('usuario_id', user.id)
+    .eq('es_global', false)
+
+  if (error) return { error: error.message }
+  revalidatePath('/dashboard/rutinas')
+  return { error: null }
+}
+
 // ── Ejercicios Custom ────────────────────────────────────────────────────────
 
 export async function createEjercicioCustom(formData: FormData) {
