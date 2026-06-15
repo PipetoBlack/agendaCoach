@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  MessageCircle, Trash2, Dumbbell, ChevronRight,
+  MessageCircle, Trash2, Dumbbell, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
   Pencil, Check, X, Plus, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -637,6 +637,70 @@ function FichaCard({
   )
 }
 
+// ── Week helpers ──────────────────────────────────────────────────────────────
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(12, 0, 0, 0)
+  const day = d.getDay() // 0=Sunday
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1)) // shift to Monday
+  return d
+}
+
+function grupoWeekKey(g: GrupoFicha): string | null {
+  if (!g.fecha_inicio) return null
+  return getWeekStart(new Date(g.fecha_inicio + 'T12:00:00')).toISOString().split('T')[0]
+}
+
+function fmtSemanaLabel(weekStart: Date): string {
+  const end = new Date(weekStart)
+  end.setDate(end.getDate() + 6)
+  const s = weekStart.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+  const e = end.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${s} – ${e}`
+}
+
+function generarWhatsAppSemana(grupos: GrupoFicha[], clienteNombre: string, weekStart: Date): string {
+  const lines: string[] = []
+  lines.push(`*Plan de entrenamiento — ${clienteNombre}*`)
+  lines.push(`_${fmtSemanaLabel(weekStart)}_`)
+
+  for (const grupo of grupos) {
+    lines.push('')
+    if (grupo.fecha_inicio) {
+      lines.push(`*${fmtCorta(grupo.fecha_inicio)}*`)
+    }
+    for (const rutina of grupo.rutinas) {
+      lines.push(`*${rutina.nombre}*${rutina.nivel ? ` _(${rutina.nivel})_` : ''}`)
+      const dia = [...(rutina.rutina_dias ?? [])].sort((a, b) => a.orden - b.orden)[0]
+      if (dia) {
+        const ejercicios = [...(dia.rutina_ejercicios ?? [])].sort((a, b) => a.orden - b.orden)
+        for (const ej of ejercicios) {
+          const nombre = ej.ejercicios?.nombre ?? ej.nombre_custom ?? '—'
+          let line: string
+          if (ej.modalidad === 'tiempo') {
+            line = `• ${nombre}: ${ej.series} × ${ej.repeticiones}min`
+            if (ej.descanso_segundos) line += ` · ${Math.round(ej.descanso_segundos / 60)}min desc.`
+          } else if (ej.modalidad === 'intervalo') {
+            line = `• ${nombre}: ${ej.series} rondas × ${ej.repeticiones}s`
+            if (ej.descanso_serie) line += ` · ${ej.descanso_serie}s/int.`
+            if (ej.descanso_segundos) line += ` · ${Math.round(ej.descanso_segundos / 60)}min desc.`
+          } else {
+            line = `• ${nombre}: ${ej.series}×${ej.repeticiones}`
+            if (ej.peso) line += ` (${ej.peso} kg)`
+            if (ej.descanso_segundos) line += ` · ${Math.round(ej.descanso_segundos / 60)}min`
+          }
+          lines.push(line)
+        }
+      }
+    }
+  }
+
+  lines.push('')
+  lines.push('_Enviado con AgendaCoach_')
+  return lines.join('\n')
+}
+
 // ── Lista de fichas ────────────────────────────────────────────────────────────
 
 export function RutinasFichas({
@@ -650,6 +714,47 @@ export function RutinasFichas({
   clienteNombre: string
   ejerciciosLib: EjercicioLib[]
 }) {
+  const thisWeekKey = useMemo(() =>
+    getWeekStart(new Date()).toISOString().split('T')[0]
+  , [])
+
+  // All unique week keys from current week onwards (sorted asc)
+  const futureWeekKeys = useMemo(() => {
+    const set = new Set<string>()
+    for (const g of grupos) {
+      const k = grupoWeekKey(g)
+      if (k && k >= thisWeekKey) set.add(k)
+    }
+    return [...set].sort()
+  }, [grupos, thisWeekKey])
+
+  // Past groups (weeks before current week)
+  const pastGrupos = useMemo(() =>
+    grupos
+      .filter(g => { const k = grupoWeekKey(g); return k !== null && k < thisWeekKey })
+      .sort((a, b) => (b.fecha_inicio ?? '').localeCompare(a.fecha_inicio ?? ''))
+  , [grupos, thisWeekKey])
+
+  const [weekIdx, setWeekIdx] = useState(0)
+  const [showHistorial, setShowHistorial] = useState(false)
+
+  const safeIdx = Math.min(Math.max(0, weekIdx), Math.max(0, futureWeekKeys.length - 1))
+  const selectedKey = futureWeekKeys[safeIdx] ?? thisWeekKey
+  const selectedWeekStart = new Date(selectedKey + 'T12:00:00')
+  const isCurrentWeek = selectedKey === thisWeekKey
+
+  const weekGrupos = useMemo(() =>
+    grupos.filter(g => grupoWeekKey(g) === selectedKey)
+  , [grupos, selectedKey])
+
+  const hasPrev = safeIdx > 0
+  const hasNext = safeIdx < futureWeekKeys.length - 1
+
+  const handleWeekWhatsApp = () => {
+    const texto = generarWhatsAppSemana(weekGrupos, clienteNombre, selectedWeekStart)
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+  }
+
   if (grupos.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-8 text-center">
@@ -663,10 +768,84 @@ export function RutinasFichas({
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {grupos.map(g => (
-        <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} />
-      ))}
+    <div className="flex flex-col gap-3">
+
+      {/* ── Navegación semanal ── */}
+      {futureWeekKeys.length > 0 && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={!hasPrev}
+            onClick={() => setWeekIdx(safeIdx - 1)}
+            className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center disabled:opacity-30 hover:border-slate-300 transition shrink-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="flex-1 text-center">
+            <p className="text-sm font-medium text-foreground leading-tight">
+              {fmtSemanaLabel(selectedWeekStart)}
+            </p>
+            {isCurrentWeek && (
+              <span className="text-[11px] font-semibold text-emerald-600">Esta semana</span>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={!hasNext}
+            onClick={() => setWeekIdx(safeIdx + 1)}
+            className="h-8 w-8 rounded-lg border border-slate-200 flex items-center justify-center disabled:opacity-30 hover:border-slate-300 transition shrink-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* ── Rutinas de la semana seleccionada ── */}
+      {weekGrupos.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {weekGrupos.map(g => (
+            <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} />
+          ))}
+          <Button
+            className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white mt-1"
+            onClick={handleWeekWhatsApp}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Enviar semana por WhatsApp
+          </Button>
+        </div>
+      ) : futureWeekKeys.length > 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-5 text-center">
+          <p className="text-sm text-muted-foreground">Sin rutinas esta semana</p>
+          <p className="text-xs text-muted-foreground/60 mt-0.5">
+            Usa las flechas para ver otras semanas
+          </p>
+        </div>
+      ) : null}
+
+      {/* ── Historial (semanas pasadas) ── */}
+      {pastGrupos.length > 0 && (
+        <div className="flex flex-col gap-2 pt-1 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setShowHistorial(v => !v)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition w-fit"
+          >
+            {showHistorial
+              ? <ChevronUp className="h-3.5 w-3.5" />
+              : <ChevronDown className="h-3.5 w-3.5" />
+            }
+            Historial · {pastGrupos.length} rutina{pastGrupos.length !== 1 ? 's' : ''} pasada{pastGrupos.length !== 1 ? 's' : ''}
+          </button>
+          {showHistorial && (
+            <div className="flex flex-col gap-2">
+              {pastGrupos.map(g => (
+                <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
