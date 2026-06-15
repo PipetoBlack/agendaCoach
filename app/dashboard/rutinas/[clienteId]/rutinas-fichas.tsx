@@ -480,11 +480,13 @@ function FichaCard({
   clienteId,
   clienteNombre,
   ejerciciosLib,
+  readOnly = false,
 }: {
   grupo: GrupoFicha
   clienteId: string
   clienteNombre: string
   ejerciciosLib: EjercicioLib[]
+  readOnly?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -565,29 +567,31 @@ function FichaCard({
                         {rutina.nivel && <Badge variant="outline" className="text-xs capitalize py-0 h-4">{rutina.nivel}</Badge>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                      <button
-                        type="button"
-                        title={isEditing ? 'Cerrar edición' : 'Editar ejercicios'}
-                        onClick={() => setEditingRutinaId(isEditing ? null : rutina.id)}
-                        className={`transition ${isEditing ? 'text-emerald-600' : 'text-muted-foreground hover:text-emerald-600'}`}
-                      >
-                        {isEditing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(rutina.id)}
-                        disabled={isPending}
-                        className="text-muted-foreground hover:text-destructive transition"
-                        title="Eliminar rutina"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                        <button
+                          type="button"
+                          title={isEditing ? 'Cerrar edición' : 'Editar ejercicios'}
+                          onClick={() => setEditingRutinaId(isEditing ? null : rutina.id)}
+                          className={`transition ${isEditing ? 'text-emerald-600' : 'text-muted-foreground hover:text-emerald-600'}`}
+                        >
+                          {isEditing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(rutina.id)}
+                          disabled={isPending}
+                          className="text-muted-foreground hover:text-destructive transition"
+                          title="Eliminar rutina"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Contenido: modo edición o lectura */}
-                  {isEditing ? (
+                  {isEditing && !readOnly ? (
                     <EditRutinaSection
                       dia={dia}
                       ejercicios={ejercicios}
@@ -708,11 +712,13 @@ export function RutinasFichas({
   clienteId,
   clienteNombre,
   ejerciciosLib,
+  readOnly = false,
 }: {
   grupos: GrupoFicha[]
   clienteId: string
   clienteNombre: string
   ejerciciosLib: EjercicioLib[]
+  readOnly?: boolean
 }) {
   const thisWeekKey = useMemo(() =>
     getWeekStart(new Date()).toISOString().split('T')[0]
@@ -761,7 +767,7 @@ export function RutinasFichas({
         <Dumbbell className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
         <p className="text-sm font-medium text-foreground">Sin rutinas asignadas</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Selecciona sesiones arriba y asigna una plantilla.
+          {readOnly ? 'No hay rutinas asignadas para este cliente.' : 'Selecciona sesiones arriba y asigna una plantilla.'}
         </p>
       </div>
     )
@@ -804,7 +810,7 @@ export function RutinasFichas({
       {weekGrupos.length > 0 ? (
         <div className="flex flex-col gap-2">
           {weekGrupos.map(g => (
-            <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} />
+            <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} readOnly={readOnly} />
           ))}
           <Button
             className="w-full gap-2 bg-[#25D366] hover:bg-[#1ebe5d] text-white mt-1"
@@ -840,7 +846,7 @@ export function RutinasFichas({
           {showHistorial && (
             <div className="flex flex-col gap-2">
               {pastGrupos.map(g => (
-                <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} />
+                <FichaCard key={g.key} grupo={g} clienteId={clienteId} clienteNombre={clienteNombre} ejerciciosLib={ejerciciosLib} readOnly={readOnly} />
               ))}
             </div>
           )}

@@ -13,6 +13,7 @@ import { EditClientButton } from '@/components/client-form-dialog'
 import { DeleteClientButton } from '@/components/delete-client-button'
 import EvaluationPreviewCard from '@/components/evaluation-preview-card'
 import EvaluationDetailModal from '@/components/evaluation-detail-modal'
+import { RutinasFichas, type GrupoFicha, type RutinaFicha } from '@/app/dashboard/rutinas/[clienteId]/rutinas-fichas'
 import { burnSessionAction, deletePackageAction, restoreBurnedSessionAction, updatePackageExpiryAction } from '@/app/dashboard/sessions/actions'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import {
@@ -33,6 +34,7 @@ import {
   Trash,
   Loader2,
   BarChart3,
+  Dumbbell,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -398,6 +400,8 @@ export function ClientDetailDialog({
   const [latestEvaluationError, setLatestEvaluationError] = useState<string | null>(null)
   const [selectedEvaluation, setSelectedEvaluation] = useState<EvaluationRecord | null>(null)
   const [latestEvaluationReloadKey, setLatestEvaluationReloadKey] = useState(0)
+  const [rutinaGrupos, setRutinaGrupos] = useState<GrupoFicha[]>([])
+  const [loadingRutinas, setLoadingRutinas] = useState(false)
 
   useEffect(() => {
     setPaginaQuemadas(1)
@@ -442,6 +446,55 @@ export function ClientDetailDialog({
       active = false
     }
   }, [open, cliente.id, latestEvaluationReloadKey])
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+
+    async function loadRutinas() {
+      setLoadingRutinas(true)
+      try {
+        const supabase = createSupabaseClient()
+        const { data } = await supabase
+          .from('rutinas')
+          .select(`
+            id, nombre, nivel, fecha_inicio, fecha_fin,
+            rutina_dias(
+              id, tipo, foco, orden,
+              rutina_ejercicios(
+                id, series, repeticiones, peso, descanso_segundos, descanso_serie, modalidad, nombre_custom, orden,
+                ejercicios(id, nombre)
+              )
+            )
+          `)
+          .eq('cliente_id', cliente.id)
+          .order('fecha_inicio', { ascending: false })
+
+        if (!active) return
+
+        const rutinas = (data ?? []) as unknown as RutinaFicha[]
+        const gruposMap = new Map<string, GrupoFicha>()
+        for (const r of rutinas) {
+          const key = `${r.fecha_inicio ?? ''}_${r.fecha_fin ?? ''}`
+          if (!gruposMap.has(key)) {
+            gruposMap.set(key, { key, fecha_inicio: r.fecha_inicio, fecha_fin: r.fecha_fin, rutinas: [] })
+          }
+          gruposMap.get(key)!.rutinas.push(r)
+        }
+        const grupos = [...gruposMap.values()].sort((a, b) => {
+          if (!a.fecha_inicio) return 1
+          if (!b.fecha_inicio) return -1
+          return b.fecha_inicio > a.fecha_inicio ? 1 : -1
+        })
+        setRutinaGrupos(grupos)
+      } finally {
+        if (active) setLoadingRutinas(false)
+      }
+    }
+
+    loadRutinas()
+    return () => { active = false }
+  }, [open, cliente.id])
 
   const ultimoConsumoPorPaquete = useMemo(() => {
     const map = new Map<string, number>()
@@ -973,6 +1026,31 @@ export function ClientDetailDialog({
             ) : showHistorialPaquetes ? (
               <p className="text-sm text-muted-foreground">Sin paquetes registrados aún.</p>
             ) : null}
+          </div>
+
+          <div className="grid gap-3 rounded-xl border p-4 bg-background sm:mx-0 mx-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-muted-foreground" /> Rutinas semanales
+              </h3>
+              <a
+                href={`/dashboard/rutinas/${cliente.id}`}
+                className="text-xs text-muted-foreground hover:text-foreground transition"
+              >
+                Gestionar →
+              </a>
+            </div>
+            {loadingRutinas ? (
+              <div className="h-16 animate-pulse rounded-lg bg-muted/50" />
+            ) : (
+              <RutinasFichas
+                grupos={rutinaGrupos}
+                clienteId={cliente.id}
+                clienteNombre={displayClientName}
+                ejerciciosLib={[]}
+                readOnly
+              />
+            )}
           </div>
 
           <div className="grid gap-3 rounded-xl border p-4 bg-background sm:mx-0 mx-1">
