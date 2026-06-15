@@ -26,6 +26,7 @@ import {
   Mail,
   Instagram,
   ChevronRight,
+  Dumbbell,
 } from 'lucide-react'
 import Link from 'next/link'
 import { ACTIVATION_ROUTE, SUBSCRIPTION_ROUTE, getPlanLabel, isPlanExpired } from '@/lib/plan'
@@ -50,6 +51,11 @@ const navItems = [
     title: 'Agendar sesiones',
     url: '/dashboard/sessions',
     icon: CalendarDays,
+  },
+  {
+    title: 'Rutinas',
+    url: '/dashboard/rutinas',
+    icon: Dumbbell,
   },
 ]
 
