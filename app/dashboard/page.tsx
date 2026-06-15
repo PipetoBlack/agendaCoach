@@ -10,17 +10,8 @@ import { burnSessionAction, updateSessionStatusAction } from './sessions/actions
 import { ConfirmBurnSessionButton } from '@/components/confirm-burn-session-button'
 import { ConfirmCancelSessionButton } from '@/components/confirm-cancel-session-button'
 import { ACTIVATION_ROUTE, isPlanRestricted } from '@/lib/plan'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+import { TodayRutinaWidget } from '@/components/today-rutina-widget'
+import { CalendarSessionCard, type WeekRutinaData } from '@/components/calendar-session-card'
 
 export default async function DashboardPage({
   searchParams,
@@ -76,11 +67,15 @@ export default async function DashboardPage({
   const prevOffset = offset - 1
   const nextOffset = offset + 1
 
+  // Rango para query de rutinas: siempre incluye hoy + la semana visible
+  const rutinaQueryStart = weekStartStr < todayStr ? weekStartStr : todayStr
+  const rutinaQueryEnd = weekEndStr > todayStr ? weekEndStr : todayStr
+
   const sevenDaysLater = new Date(today)
   sevenDaysLater.setDate(today.getDate() + 7)
   const sevenDaysLaterStr = toYmd(sevenDaysLater)
 
-  const [clientsRes, packagesExpiringRes, todaySessionsRes, weekSessionsRes, clientsListRes, packagesListRes, sesionesProgramadasRes, sesionesConsumidasRes] = await Promise.all([
+  const [clientsRes, packagesExpiringRes, todaySessionsRes, weekSessionsRes, clientsListRes, packagesListRes, sesionesProgramadasRes, sesionesConsumidasRes, hoyRutinasRes] = await Promise.all([
     supabase
       .from('clientes')
       .select('id', { count: 'exact', head: true })
@@ -125,6 +120,22 @@ export default async function DashboardPage({
       .from('sesiones_consumidas')
       .select('id, cliente_id, paquete_id, consumida_en, notas, origen')
       .eq('usuario_id', user!.id),
+
+    supabase
+      .from('rutinas')
+      .select(`
+        id, nombre, cliente_id, fecha_inicio, fecha_fin,
+        rutina_dias(
+          id, tipo, foco, orden,
+          rutina_ejercicios(
+            id, series, repeticiones, peso, descanso_segundos, modalidad, nombre_custom, orden,
+            ejercicios(id, nombre)
+          )
+        )
+      `)
+      .eq('usuario_id', user!.id)
+      .lte('fecha_inicio', rutinaQueryEnd)
+      .or(`fecha_fin.gte.${rutinaQueryStart},fecha_fin.is.null`),
   ])
 
   const totalClients = clientsRes.count ?? 0
@@ -204,6 +215,42 @@ export default async function DashboardPage({
     clientes: { nombre_completo: string; telefono: string | null }
   }>
 
+  type RawEj = {
+    id: string; series: number; repeticiones: string; peso: string | null
+    descanso_segundos: number; modalidad: string; nombre_custom: string | null; orden: number
+    ejercicios: { nombre: string } | null
+  }
+  type RawDiaHoy = { id: string; tipo: string; foco: string; orden: number; rutina_ejercicios: RawEj[] }
+  type RawRutinaHoy = { id: string; nombre: string; cliente_id: string; fecha_inicio: string | null; fecha_fin: string | null; rutina_dias: RawDiaHoy[] }
+
+  const hoyRutinasRaw = (hoyRutinasRes.data ?? []) as unknown as RawRutinaHoy[]
+
+  // Todas las rutinas de la semana (para el calendario)
+  const weekRutinasArr: WeekRutinaData[] = []
+  for (const r of hoyRutinasRaw) {
+    const dia = [...(r.rutina_dias ?? [])].sort((a, b) => a.orden - b.orden)[0]
+    if (!dia) continue
+    const ejercicios = [...(dia.rutina_ejercicios ?? [])].sort((a, b) => a.orden - b.orden).map(ej => ({
+      id: ej.id,
+      nombre: ej.ejercicios?.nombre ?? ej.nombre_custom ?? '—',
+      series: ej.series,
+      repeticiones: ej.repeticiones,
+      peso: ej.peso,
+      modalidad: ej.modalidad,
+    }))
+    weekRutinasArr.push({ id: r.id, nombre: r.nombre, cliente_id: r.cliente_id, fecha_inicio: r.fecha_inicio, fecha_fin: r.fecha_fin, ejercicios })
+  }
+
+  // Rutinas de hoy (para "Agendados para hoy")
+  const clienteRutinasHoy = new Map<string, WeekRutinaData[]>()
+  for (const r of weekRutinasArr) {
+    if (r.fecha_inicio && r.fecha_inicio > todayStr) continue
+    if (r.fecha_fin && r.fecha_fin < todayStr) continue
+    const existing = clienteRutinasHoy.get(r.cliente_id) ?? []
+    existing.push(r)
+    clienteRutinasHoy.set(r.cliente_id, existing)
+  }
+
   const weekByDay = weekSessions.reduce<Record<string, typeof weekSessions>>(
     (acc, session) => {
       acc[session.fecha_sesion] = acc[session.fecha_sesion] || []
@@ -232,39 +279,6 @@ export default async function DashboardPage({
   const dayPairs: Array<typeof weekDays> = []
   for (let i = 0; i < weekDays.length; i += 2) {
     dayPairs.push(weekDays.slice(i, i + 2))
-  }
-
-  const statusStyles: Record<
-    string,
-    { bg: string; text: string; border: string; label: string; dot: string; cardBorder: string; leftAccent: string }
-  > = {
-    programada: {
-      bg: 'bg-[#e8f1ff]',
-      text: 'text-[#1d4ed8]',
-      border: 'border-l-[#3b82f6]',
-      label: 'Programada',
-      dot: 'bg-[#1d4ed8]',
-      cardBorder: 'border-[#3b82f6]/40',
-      leftAccent: 'border-l-[3px] border-l-[#3b82f6]/60',
-    },
-    completada: {
-      bg: 'bg-[#e8f9ef]',
-      text: 'text-[#15803d]',
-      border: 'border-l-[#16a34a]',
-      label: 'Completada',
-      dot: 'bg-[#15803d]',
-      cardBorder: 'border-[#16a34a]/40',
-      leftAccent: 'border-l-[3px] border-l-[#16a34a]/60',
-    },
-    cancelada: {
-      bg: 'bg-[#fff1f1]',
-      text: 'text-[#b91c1c]',
-      border: 'border-l-[#ef4444]',
-      label: 'Cancelada',
-      dot: 'bg-[#b91c1c]',
-      cardBorder: 'border-[#ef4444]/40',
-      leftAccent: 'border-l-[3px] border-l-[#ef4444]/60',
-    },
   }
 
   const displayName = profile?.nombre_completo
@@ -338,6 +352,7 @@ export default async function DashboardPage({
           ) : (
             <div className="mt-3 space-y-2">
               {todaySessions.map((s) => {
+                const rutinaHoy = clienteRutinasHoy.get(s.cliente_id) ?? []
                 const phone = s.clientes?.telefono?.replace(/\D/g, '') || ''
                 const timeLabel = s.hora_sesion ? s.hora_sesion.slice(0, 5) : '—'
                 const waUrl = phone
@@ -425,6 +440,11 @@ export default async function DashboardPage({
                     {!s.paquete_id && s.estado === 'programada' && (
                       <p className="text-xs text-muted-foreground">No hay paquete asociado; asigna uno para quemar sesión.</p>
                     )}
+                    <TodayRutinaWidget
+                      rutinas={rutinaHoy}
+                      clienteNombre={s.clientes?.nombre_completo || ''}
+                      clienteTelefono={s.clientes?.telefono ?? null}
+                    />
                   </div>
                 )
               })}
@@ -484,52 +504,14 @@ export default async function DashboardPage({
                       <p className="text-sm text-muted-foreground">Sin sesiones</p>
                     ) : (
                       <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
-                        {day.sessions.map((s) => {
-                          const style = statusStyles[s.estado] ?? statusStyles.programada
-                          const canCancelFuture = day.date >= startOfToday && s.estado === 'programada'
-
-                          const card = (
-                            <div
-                              className={`rounded-lg border ${style.cardBorder} ${style.leftAccent} bg-white px-3 py-2 shadow-[0_2px_10px_rgba(0,0,0,0.04)] ${
-                                canCancelFuture ? 'cursor-pointer transition-shadow hover:shadow-[0_6px_18px_rgba(0,0,0,0.08)]' : ''
-                              }`}
-                            >
-                              <div className="flex flex-col gap-1">
-                                <p className="text-sm font-medium text-foreground leading-snug whitespace-normal break-words text-wrap">
-                                  {s.clientes?.nombre_completo || 'Sin nombre'}
-                                </p>
-                                <div className="flex items-center text-xs text-muted-foreground">
-                                  <span className="whitespace-nowrap">{s.hora_sesion?.slice(0, 5) || '--:--'}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )
-
-                          if (!canCancelFuture) return <div key={s.id}>{card}</div>
-
-                          return (
-                            <AlertDialog key={s.id}>
-                              <AlertDialogTrigger asChild>{card}</AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Cancelar esta sesión agendada?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    ¿Estás seguro de cancelar? La sesión volverá a estar disponible y tendrás que agendarla manualmente.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <form action={cancelScheduledSession}>
-                                  <input type="hidden" name="sessionId" value={s.id} />
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel type="button">Volver</AlertDialogCancel>
-                                    <AlertDialogAction type="submit" className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                                      Cancelar sesión
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </form>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )
-                        })}
+                        {day.sessions.map((s) => (
+                          <CalendarSessionCard
+                            key={s.id}
+                            session={s}
+                            weekRutinas={weekRutinasArr}
+                            canCancelFuture={day.date >= startOfToday && s.estado === 'programada'}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
@@ -563,10 +545,3 @@ async function cancelTodaySession(formData: FormData) {
   await updateSessionStatusAction(sessionId, 'cancelada')
 }
 
-// Server action: cancelar sesión desde el calendario semanal (futuras/actual)
-async function cancelScheduledSession(formData: FormData) {
-  'use server'
-  const sessionId = (formData.get('sessionId') as string) || ''
-  if (!sessionId) return
-  await updateSessionStatusAction(sessionId, 'cancelada')
-}
