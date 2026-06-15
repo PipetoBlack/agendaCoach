@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Package, ArrowLeft, ArrowRight, Users, RotateCcw } from 'lucide-react'
+import { Package, Users } from 'lucide-react'
 import { ClientsQuickList } from '@/components/clients-quick-list'
 import { ExpiringPackagesCard } from '@/components/expiring-packages-card'
 import { MessageCircle, XCircle, CheckCircle2 } from 'lucide-react'
@@ -11,13 +10,9 @@ import { ConfirmBurnSessionButton } from '@/components/confirm-burn-session-butt
 import { ConfirmCancelSessionButton } from '@/components/confirm-cancel-session-button'
 import { ACTIVATION_ROUTE, isPlanRestricted } from '@/lib/plan'
 import { TodayRutinaWidget } from '@/components/today-rutina-widget'
-import { CalendarSessionCard, type WeekRutinaData } from '@/components/calendar-session-card'
+import { WeeklyCalendarWidget } from '@/components/weekly-calendar-widget'
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ weekOffset?: string }>
-}) {
+export default async function DashboardPage() {
   const supabase = await createClient()
   const {
     data: { user },
@@ -36,46 +31,17 @@ export default async function DashboardPage({
     redirect(ACTIVATION_ROUTE)
   }
 
-  const params = await searchParams
-  const offset = Number(params?.weekOffset ?? '0') || 0
-
   const timeZone = 'America/Santiago'
   const now = new Date()
   const toYmd = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone }).format(d)
   const todayStr = toYmd(now)
   const today = new Date(new Date(now.toLocaleString('en-US', { timeZone })).getTime())
-  const startOfToday = new Date(`${todayStr}T00:00:00`)
-  const startOfWeek = new Date(startOfToday)
-  const day = startOfWeek.getDay()
-  const diffToMonday = (day + 6) % 7
-  startOfWeek.setDate(startOfWeek.getDate() - diffToMonday + offset * 7)
-  const endOfWeek = new Date(startOfWeek)
-  endOfWeek.setDate(startOfWeek.getDate() + 6)
-  const weekStartStr = toYmd(startOfWeek)
-  const weekEndStr = toYmd(endOfWeek)
-  const formatWeekLabel = (start: Date, end: Date) => {
-    const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
-    const startDay = start.toLocaleDateString('es-CL', { day: 'numeric' })
-    const endDay = end.toLocaleDateString('es-CL', { day: 'numeric' })
-    const startMonth = start.toLocaleDateString('es-CL', { month: 'long' })
-    const endMonth = end.toLocaleDateString('es-CL', { month: 'long' })
-    return sameMonth
-      ? `${startDay} al ${endDay} de ${startMonth}`
-      : `${startDay} de ${startMonth} al ${endDay} de ${endMonth}`
-  }
-  const weekLabel = formatWeekLabel(startOfWeek, endOfWeek)
-  const prevOffset = offset - 1
-  const nextOffset = offset + 1
-
-  // Rango para query de rutinas: siempre incluye hoy + la semana visible
-  const rutinaQueryStart = weekStartStr < todayStr ? weekStartStr : todayStr
-  const rutinaQueryEnd = weekEndStr > todayStr ? weekEndStr : todayStr
 
   const sevenDaysLater = new Date(today)
   sevenDaysLater.setDate(today.getDate() + 7)
   const sevenDaysLaterStr = toYmd(sevenDaysLater)
 
-  const [clientsRes, packagesExpiringRes, todaySessionsRes, weekSessionsRes, clientsListRes, packagesListRes, sesionesProgramadasRes, sesionesConsumidasRes, hoyRutinasRes] = await Promise.all([
+  const [clientsRes, packagesExpiringRes, todaySessionsRes, clientsListRes, packagesListRes, sesionesProgramadasRes, sesionesConsumidasRes, hoyRutinasRes] = await Promise.all([
     supabase
       .from('clientes')
       .select('id', { count: 'exact', head: true })
@@ -94,14 +60,6 @@ export default async function DashboardPage({
       .select('id, cliente_id, paquete_id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo, telefono)')
       .eq('usuario_id', user!.id)
       .eq('fecha_sesion', todayStr)
-      .order('hora_sesion', { ascending: true }),
-    supabase
-      .from('sesiones_programadas')
-      .select('id, cliente_id, paquete_id, fecha_sesion, hora_sesion, estado, clientes(nombre_completo, telefono)')
-      .eq('usuario_id', user!.id)
-      .gte('fecha_sesion', weekStartStr)
-      .lte('fecha_sesion', weekEndStr)
-      .order('fecha_sesion', { ascending: true })
       .order('hora_sesion', { ascending: true }),
     supabase
       .from('clientes')
@@ -134,8 +92,8 @@ export default async function DashboardPage({
         )
       `)
       .eq('usuario_id', user!.id)
-      .lte('fecha_inicio', rutinaQueryEnd)
-      .or(`fecha_fin.gte.${rutinaQueryStart},fecha_fin.is.null`),
+      .lte('fecha_inicio', todayStr)
+      .or(`fecha_fin.gte.${todayStr},fecha_fin.is.null`),
   ])
 
   const totalClients = clientsRes.count ?? 0
@@ -205,16 +163,6 @@ export default async function DashboardPage({
     estado: string
     clientes: { nombre_completo: string; telefono: string | null }
   }>
-  const weekSessions = (weekSessionsRes.data ?? []) as Array<{
-    id: string
-    cliente_id: string
-    paquete_id: string | null
-    fecha_sesion: string
-    hora_sesion: string
-    estado: string
-    clientes: { nombre_completo: string; telefono: string | null }
-  }>
-
   type RawEj = {
     id: string; series: number; repeticiones: string; peso: string | null
     descanso_segundos: number; modalidad: string; nombre_custom: string | null; orden: number
@@ -225,8 +173,7 @@ export default async function DashboardPage({
 
   const hoyRutinasRaw = (hoyRutinasRes.data ?? []) as unknown as RawRutinaHoy[]
 
-  // Todas las rutinas de la semana (para el calendario)
-  const weekRutinasArr: WeekRutinaData[] = []
+  const clienteRutinasHoy = new Map<string, Array<{ id: string; nombre: string; ejercicios: Array<{ id: string; nombre: string; series: number; repeticiones: string; peso: string | null; modalidad: string }> }>>()
   for (const r of hoyRutinasRaw) {
     const dia = [...(r.rutina_dias ?? [])].sort((a, b) => a.orden - b.orden)[0]
     if (!dia) continue
@@ -238,47 +185,9 @@ export default async function DashboardPage({
       peso: ej.peso,
       modalidad: ej.modalidad,
     }))
-    weekRutinasArr.push({ id: r.id, nombre: r.nombre, cliente_id: r.cliente_id, fecha_inicio: r.fecha_inicio, fecha_fin: r.fecha_fin, ejercicios })
-  }
-
-  // Rutinas de hoy (para "Agendados para hoy")
-  const clienteRutinasHoy = new Map<string, WeekRutinaData[]>()
-  for (const r of weekRutinasArr) {
-    if (r.fecha_inicio && r.fecha_inicio > todayStr) continue
-    if (r.fecha_fin && r.fecha_fin < todayStr) continue
     const existing = clienteRutinasHoy.get(r.cliente_id) ?? []
-    existing.push(r)
+    existing.push({ id: r.id, nombre: r.nombre, ejercicios })
     clienteRutinasHoy.set(r.cliente_id, existing)
-  }
-
-  const weekByDay = weekSessions.reduce<Record<string, typeof weekSessions>>(
-    (acc, session) => {
-      acc[session.fecha_sesion] = acc[session.fecha_sesion] || []
-      acc[session.fecha_sesion].push(session)
-      return acc
-    },
-    {},
-  )
-
-  const weekDays = Array.from({ length: 7 }).map((_, idx) => {
-    const date = new Date(startOfWeek)
-    date.setDate(startOfWeek.getDate() + idx)
-    const key = date.toISOString().split('T')[0]
-    const weekdayLong = date.toLocaleDateString('es-CL', { weekday: 'long' })
-    return {
-      key,
-      date,
-      weekday: weekdayLong.charAt(0).toUpperCase() + weekdayLong.slice(1),
-      shortWeekday: date.toLocaleDateString('es-CL', { weekday: 'short' }).toUpperCase(),
-      dateLabel: date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }),
-      sessions: weekByDay[key] || [],
-      isToday: key === todayStr,
-    }
-  })
-
-  const dayPairs: Array<typeof weekDays> = []
-  for (let i = 0; i < weekDays.length; i += 2) {
-    dayPairs.push(weekDays.slice(i, i + 2))
   }
 
   const displayName = profile?.nombre_completo
@@ -452,75 +361,7 @@ export default async function DashboardPage({
           )}
         </div>
 
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="flex flex-col items-center text-center gap-2">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">Calendario semanal</h2>
-              <p className="text-xs text-muted-foreground">Desliza para ver los pares de días</p>
-            </div>
-            <div className="flex items-center justify-center gap-2 bg-muted/60 rounded-full px-2 py-1 shadow-inner w-full max-w-xs">
-              <Button asChild variant="ghost" size="icon" className="h-9 w-9" aria-label="Semana anterior">
-                <Link href={`?weekOffset=${prevOffset}`}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Link>
-              </Button>
-              <div className="flex-1 px-2 py-1 text-sm font-semibold text-foreground whitespace-nowrap truncate text-center">
-                {offset === 0 ? 'Semana actual' : weekLabel}
-              </div>
-              {offset !== 0 && (
-                <Button asChild variant="ghost" size="icon" className="h-9 w-9" aria-label="Volver a semana actual">
-                  <Link href="?weekOffset=0">
-                    <RotateCcw className="h-4 w-4" />
-                  </Link>
-                </Button>
-              )}
-              <Button asChild variant="ghost" size="icon" className="h-9 w-9" aria-label="Semana siguiente">
-                <Link href={`?weekOffset=${nextOffset}`}>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-4 overflow-x-auto pb-3 snap-x snap-mandatory space-y-3 px-1">
-            {dayPairs.map((pair, pairIdx) => (
-              <div
-                key={`pair-${pairIdx}`}
-                className="grid min-w-full grid-cols-2 gap-3 snap-center"
-              >
-                {pair.map((day) => (
-                  <div
-                    key={day.key}
-                    className={`relative rounded-2xl border p-3 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col gap-2 w-full ${day.isToday ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-gradient-to-b from-white to-slate-50'}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5">
-                        <p className="text-2xl font-bold leading-none text-foreground">{day.weekday}</p>
-                        <p className="text-sm font-medium text-muted-foreground">{day.dateLabel}</p>
-                      </div>
-                    </div>
-
-                    {day.sessions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Sin sesiones</p>
-                    ) : (
-                      <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
-                        {day.sessions.map((s) => (
-                          <CalendarSessionCard
-                            key={s.id}
-                            session={s}
-                            weekRutinas={weekRutinasArr}
-                            canCancelFuture={day.date >= startOfToday && s.estado === 'programada'}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {pair.length === 1 && <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50" />}
-              </div>
-            ))}
-          </div>
-        </div>
+        <WeeklyCalendarWidget />
       </div>
     </div>
   )

@@ -46,10 +46,12 @@ export function CalendarSessionCard({
   session,
   weekRutinas,
   canCancelFuture,
+  onCancelled,
 }: {
   session: Session
   weekRutinas: WeekRutinaData[]
   canCancelFuture: boolean
+  onCancelled?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -72,6 +74,8 @@ export function CalendarSessionCard({
     startTransition(async () => {
       await updateSessionStatusAction(session.id, 'cancelada')
       setOpen(false)
+      setConfirmCancel(false)
+      onCancelled?.()
       router.refresh()
     })
   }
