@@ -32,6 +32,7 @@ export default async function ClienteRutinasPage({
     { data: sesionesRaw },
     { data: rutinasRaw },
     { data: plantillasRaw },
+    { data: ejerciciosRaw },
   ] = await Promise.all([
     supabase
       .from('clientes')
@@ -73,6 +74,12 @@ export default async function ClienteRutinasPage({
       .eq('usuario_id', user.id)
       .is('cliente_id', null)
       .order('creado_en', { ascending: false }),
+
+    supabase
+      .from('ejercicios')
+      .select('id, nombre, grupo_muscular')
+      .or(`es_global.eq.true,usuario_id.eq.${user.id}`)
+      .order('nombre', { ascending: true }),
   ])
 
   if (!cliente) notFound()
@@ -170,6 +177,7 @@ export default async function ClienteRutinasPage({
           plantillas={plantillas}
           clienteId={clienteId}
           clienteNombre={cliente.nombre_completo}
+          ejerciciosLib={(ejerciciosRaw ?? []) as { id: string; nombre: string; grupo_muscular: string }[]}
         />
 
         {sesiones.length > 0 && (
@@ -200,6 +208,7 @@ export default async function ClienteRutinasPage({
           grupos={grupos}
           clienteId={clienteId}
           clienteNombre={cliente.nombre_completo}
+          ejerciciosLib={(ejerciciosRaw ?? []) as { id: string; nombre: string; grupo_muscular: string }[]}
         />
       </div>
     </div>

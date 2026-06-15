@@ -113,7 +113,7 @@ export function PlantillaCard({
   const [ejSeries, setEjSeries] = useState('3')
   const [ejReps, setEjReps] = useState('10')
   const [ejPeso, setEjPeso] = useState('')
-  const [ejDescanso, setEjDescanso] = useState('60')
+  const [ejDescanso, setEjDescanso] = useState('1')
   const [ejGrupo, setEjGrupo] = useState('')
   const [ejModalidad, setEjModalidad] = useState<'repeticion' | 'tiempo' | 'intervalo'>('repeticion')
   const [ejDescSerie, setEjDescSerie] = useState('10')
@@ -161,7 +161,7 @@ export function PlantillaCard({
   const resetAddEj = () => {
     setShowAddEjForm(false)
     setEjSearch(''); setEjSelId(null); setEjSelNombre(''); setEjCustom('')
-    setEjSeries('3'); setEjReps('10'); setEjPeso(''); setEjDescanso('60'); setEjGrupo('')
+    setEjSeries('3'); setEjReps('10'); setEjPeso(''); setEjDescanso('1'); setEjGrupo('')
     setEjModalidad('repeticion'); setEjDescSerie('10')
   }
 
@@ -186,7 +186,7 @@ export function PlantillaCard({
       series: parseInt(ejSeries) || (m === 'tiempo' ? 1 : 3),
       repeticiones: ejReps || (m === 'repeticion' ? '10' : '30'),
       peso: m === 'repeticion' ? ejPeso : '',
-      descansoSegundos: m === 'repeticion' ? (parseInt(ejDescanso) || 60) : (parseInt(ejDescanso) || 2) * 60,
+      descansoSegundos: (parseInt(ejDescanso) || (m === 'repeticion' ? 1 : 2)) * 60,
       modalidad: m,
       descSerie: m === 'intervalo' ? (parseInt(ejDescSerie) || 10) : null,
     }])
@@ -294,10 +294,10 @@ export function PlantillaCard({
                         <p className="text-sm font-medium text-foreground truncate">{nombreEj(ej)}</p>
                         <p className="text-xs text-muted-foreground">
                           {ej.modalidad === 'tiempo'
-                            ? `${ej.series} × ${ej.repeticiones}min · ${Math.round(ej.descanso_segundos / 60)}min desc.`
+                            ? `${ej.series} × ${ej.repeticiones}min${ej.descanso_segundos > 0 ? ` · ${Math.round(ej.descanso_segundos / 60)}min desc.` : ''}`
                             : ej.modalidad === 'intervalo'
-                            ? `${ej.series} rondas × ${ej.repeticiones}s · ${ej.descanso_serie ?? 0}s/int. · ${Math.round(ej.descanso_segundos / 60)}min desc.`
-                            : `${ej.series} series · ${ej.repeticiones} reps${ej.peso ? ` · ${ej.peso}` : ''} · ${ej.descanso_segundos}s descanso`
+                            ? `${ej.series} rondas × ${ej.repeticiones}s${(ej.descanso_serie ?? 0) > 0 ? ` · ${ej.descanso_serie}s/int.` : ''}${ej.descanso_segundos > 0 ? ` · ${Math.round(ej.descanso_segundos / 60)}min desc.` : ''}`
+                            : `${ej.series} series · ${ej.repeticiones} reps${ej.peso ? ` · ${ej.peso}` : ''}${ej.descanso_segundos > 0 ? ` · ${Math.round(ej.descanso_segundos / 60)}min` : ''}`
                           }
                         </p>
                       </div>
@@ -381,10 +381,10 @@ export function PlantillaCard({
                           <p className="text-sm font-medium text-foreground truncate">{ej.nombre}</p>
                           <p className="text-xs text-muted-foreground">
                             {ej.modalidad === 'tiempo'
-                              ? `${ej.series} × ${ej.repeticiones}min · ${Math.round(ej.descansoSegundos / 60)}min desc.`
+                              ? `${ej.series} × ${ej.repeticiones}min${ej.descansoSegundos > 0 ? ` · ${Math.round(ej.descansoSegundos / 60)}min desc.` : ''}`
                               : ej.modalidad === 'intervalo'
-                              ? `${ej.series} rondas × ${ej.repeticiones}s · ${ej.descSerie ?? 0}s/int. · ${Math.round(ej.descansoSegundos / 60)}min desc.`
-                              : `${ej.series} series · ${ej.repeticiones} reps${ej.peso ? ` · ${ej.peso}` : ''} · ${ej.descansoSegundos}s`
+                              ? `${ej.series} rondas × ${ej.repeticiones}s${(ej.descSerie ?? 0) > 0 ? ` · ${ej.descSerie}s/int.` : ''}${ej.descansoSegundos > 0 ? ` · ${Math.round(ej.descansoSegundos / 60)}min desc.` : ''}`
+                              : `${ej.series} series · ${ej.repeticiones} reps${ej.peso ? ` · ${ej.peso}` : ''}${ej.descansoSegundos > 0 ? ` · ${Math.round(ej.descansoSegundos / 60)}min` : ''}`
                             }
                           </p>
                         </div>
@@ -462,7 +462,7 @@ export function PlantillaCard({
                     <div className="flex rounded-lg border border-slate-200 overflow-hidden h-8">
                       {(['repeticion', 'tiempo', 'intervalo'] as const).map((m, i) => (
                         <button key={m} type="button"
-                          onClick={() => { setEjModalidad(m); setEjDescanso(m === 'repeticion' ? '60' : '2'); setEjSeries(m === 'tiempo' ? '1' : '3') }}
+                          onClick={() => { setEjModalidad(m); setEjDescanso(m === 'repeticion' ? '1' : '2'); setEjSeries(m === 'tiempo' ? '1' : '3') }}
                           className={`flex-1 text-xs font-medium transition ${i > 0 ? 'border-l border-slate-200' : ''} ${
                             ejModalidad === m ? 'bg-emerald-600 text-white' : 'bg-white text-muted-foreground hover:bg-slate-50'
                           }`}
@@ -500,9 +500,9 @@ export function PlantillaCard({
                             onChange={e => setEjPeso(num3(e.target.value))} />
                         </div>
                         <div className="grid gap-1">
-                          <Label className="text-xs">Desc. (s)</Label>
+                          <Label className="text-xs">Desc. (min)</Label>
                           <Input className="h-7 text-xs" inputMode="numeric" maxLength={3}
-                            value={ejDescanso} placeholder="60"
+                            value={ejDescanso} placeholder="1"
                             onChange={e => setEjDescanso(num3(e.target.value))} />
                         </div>
                       </div>

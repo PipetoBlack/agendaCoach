@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Calendar, Check, Dumbbell } from 'lucide-react'
+import { Calendar, Check, Dumbbell, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { asignarPlantillaACliente } from '../actions'
+import { SesionPersonalizadaDialog } from './sesion-personalizada-dialog'
 
 export type SesionItem = {
   id: string
@@ -22,6 +23,8 @@ export type PlantillaResumen = {
   ejerciciosCount: number
 }
 
+type EjercicioLib = { id: string; nombre: string; grupo_muscular: string }
+
 const fmtCorta = (fecha: string) =>
   new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', {
     weekday: 'short', day: 'numeric', month: 'short',
@@ -35,15 +38,18 @@ export function SesionesSelector({
   plantillas,
   clienteId,
   clienteNombre,
+  ejerciciosLib,
 }: {
   sesiones: SesionItem[]
   plantillas: PlantillaResumen[]
   clienteId: string
   clienteNombre: string
+  ejerciciosLib: EjercicioLib[]
 }) {
   const [selSesiones, setSelSesiones] = useState<Set<string>>(new Set())
   const [selPlantillas, setSelPlantillas] = useState<Set<string>>(new Set())
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [customOpen, setCustomOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
@@ -58,8 +64,10 @@ export function SesionesSelector({
   const dates = sesionesSeleccionadas.map(s => s.fecha_sesion).sort()
   const fechaInicio = dates[0] ?? null
   const fechaFin = dates[dates.length - 1] ?? null
+  const sesionesLabel = sesionesSeleccionadas.map(s => fmtBadge(s))
 
-  const openDialog = () => { setSelPlantillas(new Set()); setError(null); setDialogOpen(true) }
+  const openAssign = () => { setSelPlantillas(new Set()); setError(null); setAssignOpen(true) }
+  const openCustom = () => { setCustomOpen(true) }
 
   const handleAsignar = () => {
     if (selPlantillas.size === 0 || !fechaInicio || !fechaFin) return
@@ -76,10 +84,9 @@ export function SesionesSelector({
         if (result.error) { setError(result.error); return }
         if (result.id) lastId = result.id
       }
-      setDialogOpen(false)
+      setAssignOpen(false)
       setSelSesiones(new Set())
       setSelPlantillas(new Set())
-      // Si solo se asignó una plantilla, ir directo al detalle
       if (selPlantillas.size === 1 && lastId) {
         router.push(`/dashboard/rutinas/${clienteId}/${lastId}`)
       } else {
@@ -99,7 +106,7 @@ export function SesionesSelector({
 
   return (
     <>
-      {/* ── Cuadrícula compacta de sesiones ── */}
+      {/* ── Cuadrícula de sesiones ── */}
       <div className="grid grid-cols-2 gap-2">
         {sesiones.map(s => {
           const on = selSesiones.has(s.id)
@@ -125,15 +132,22 @@ export function SesionesSelector({
         })}
       </div>
 
+      {/* ── Botones de acción ── */}
       {selSesiones.size > 0 && (
-        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 w-full" onClick={openDialog}>
-          <Dumbbell className="h-4 w-4" />
-          Asignar plantilla · {selSesiones.size} sesión{selSesiones.size !== 1 ? 'es' : ''}
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 w-full" onClick={openAssign}>
+            <Dumbbell className="h-4 w-4" />
+            Asignar plantilla · {selSesiones.size} sesión{selSesiones.size !== 1 ? 'es' : ''}
+          </Button>
+          <Button variant="outline" className="gap-2 w-full" onClick={openCustom}>
+            <Sparkles className="h-4 w-4" />
+            Crear sesión personalizada
+          </Button>
+        </div>
       )}
 
-      {/* ── Dialog ── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* ── Dialog: asignar plantilla ── */}
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
         <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Asignar rutina a {clienteNombre.split(' ')[0]}</DialogTitle>
@@ -154,7 +168,7 @@ export function SesionesSelector({
               </div>
             </div>
 
-            {/* Plantillas — multi-selección */}
+            {/* Plantillas */}
             {plantillas.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
                 <Dumbbell className="h-7 w-7 text-muted-foreground/30 mx-auto mb-2" />
@@ -207,7 +221,7 @@ export function SesionesSelector({
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex justify-between pt-3 border-t border-slate-100">
-              <Button variant="ghost" onClick={() => setDialogOpen(false)} disabled={isPending}>
+              <Button variant="ghost" onClick={() => setAssignOpen(false)} disabled={isPending}>
                 Cancelar
               </Button>
               <Button className="bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -221,6 +235,18 @@ export function SesionesSelector({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog: sesión personalizada ── */}
+      <SesionPersonalizadaDialog
+        open={customOpen}
+        onClose={() => { setCustomOpen(false); setSelSesiones(new Set()) }}
+        clienteId={clienteId}
+        clienteNombre={clienteNombre}
+        fechaInicio={fechaInicio}
+        fechaFin={fechaFin}
+        sesionesLabel={sesionesLabel}
+        ejerciciosLib={ejerciciosLib}
+      />
     </>
   )
 }

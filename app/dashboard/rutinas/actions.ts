@@ -504,6 +504,153 @@ export async function deleteEjercicioPropio(id: string) {
   return { error: null }
 }
 
+// ── Sesión personalizada para cliente ────────────────────────────────────────
+
+export async function crearSesionPersonalizada(data: {
+  clienteId: string
+  fechaInicio: string
+  fechaFin: string
+  nombre: string
+  nivel: string
+  notas: string
+  tipo: string
+  ejercicios: EjercicioPlantilla[]
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { data: rutina, error: rutinaError } = await supabase
+    .from('rutinas')
+    .insert({
+      usuario_id: user.id,
+      cliente_id: data.clienteId,
+      nombre: data.nombre.trim(),
+      nivel: data.nivel || null,
+      notas: data.notas?.trim() || null,
+      fecha_inicio: data.fechaInicio,
+      fecha_fin: data.fechaFin,
+    })
+    .select('id')
+    .single()
+
+  if (rutinaError) return { error: rutinaError.message }
+
+  const { data: dia, error: diaError } = await supabase
+    .from('rutina_dias')
+    .insert({ rutina_id: rutina.id, nombre: data.nombre.trim(), tipo: data.tipo, foco: 'general', orden: 0 })
+    .select('id')
+    .single()
+
+  if (diaError) return { error: diaError.message }
+
+  if (data.ejercicios.length > 0) {
+    const { error: ejError } = await supabase
+      .from('rutina_ejercicios')
+      .insert(data.ejercicios.map((ej, idx) => ({
+        rutina_dia_id: dia.id,
+        ejercicio_id: ej.ejercicioId || null,
+        nombre_custom: ej.nombreCustom || null,
+        series: ej.series,
+        repeticiones: ej.repeticiones,
+        peso: ej.peso || null,
+        descanso_segundos: ej.descansoSegundos,
+        modalidad: ej.modalidad ?? 'repeticion',
+        descanso_serie: ej.descansoSerie ?? null,
+        orden: idx,
+      })))
+    if (ejError) return { error: ejError.message }
+  }
+
+  revalidatePath(`/dashboard/rutinas/${data.clienteId}`)
+  return { id: rutina.id }
+}
+
+// ── Ejercicios de rutina (CRUD) ───────────────────────────────────────────────
+
+export async function deleteRutinaEjercicio(rutinaEjercicioId: string, clienteId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('rutina_ejercicios')
+    .delete()
+    .eq('id', rutinaEjercicioId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/dashboard/rutinas/${clienteId}`)
+  return { ok: true }
+}
+
+export async function addEjercicioARutina(data: {
+  rutinaDiaId: string
+  clienteId: string
+  ejercicioId: string | null
+  nombreCustom: string | null
+  series: number
+  repeticiones: string
+  peso: string
+  descansoSegundos: number
+  modalidad: string
+  descansoSerie: number | null
+  orden: number
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('rutina_ejercicios')
+    .insert({
+      rutina_dia_id: data.rutinaDiaId,
+      ejercicio_id: data.ejercicioId,
+      nombre_custom: data.nombreCustom,
+      series: data.series,
+      repeticiones: data.repeticiones,
+      peso: data.peso || null,
+      descanso_segundos: data.descansoSegundos,
+      modalidad: data.modalidad,
+      descanso_serie: data.descansoSerie,
+      orden: data.orden,
+    })
+
+  if (error) return { error: error.message }
+  revalidatePath(`/dashboard/rutinas/${data.clienteId}`)
+  return { ok: true }
+}
+
+export async function updateRutinaEjercicio(data: {
+  rutinaEjercicioId: string
+  clienteId: string
+  series: number
+  repeticiones: string
+  peso: string
+  descansoSegundos: number
+  modalidad: string
+  descansoSerie: number | null
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('rutina_ejercicios')
+    .update({
+      series: data.series,
+      repeticiones: data.repeticiones,
+      peso: data.peso || null,
+      descanso_segundos: data.descansoSegundos,
+      modalidad: data.modalidad,
+      descanso_serie: data.descansoSerie,
+    })
+    .eq('id', data.rutinaEjercicioId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/dashboard/rutinas/${data.clienteId}`)
+  return { ok: true }
+}
+
 // ── Ejercicios Custom ────────────────────────────────────────────────────────
 
 export async function createEjercicioCustom(formData: FormData) {
