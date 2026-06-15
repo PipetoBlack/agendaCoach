@@ -205,7 +205,7 @@ export default async function DashboardPage() {
   const todayLabel = `${weekdayLabel} ${dayLabel} de ${monthLabel}`
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl w-full mx-auto px-3 sm:px-0">
+    <div className="flex flex-col gap-6 max-w-4xl w-full mx-auto px-3 sm:px-0 overflow-x-hidden">
       <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 text-white p-5 sm:p-6 shadow-md">
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium opacity-90">Hoy, {todayLabel}</span>
@@ -254,7 +254,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4">
-        <div className="rounded-lg border bg-card p-4 shadow-sm">
+        <div className="rounded-lg border bg-card p-4 shadow-sm overflow-hidden">
           <h2 className="text-lg font-semibold text-foreground">Agendados para hoy</h2>
           {todaySessions.length === 0 ? (
             <p className="text-sm text-muted-foreground mt-2">No hay sesiones programadas para hoy.</p>

@@ -162,8 +162,8 @@ export function WeeklyCalendarWidget() {
   })()
 
   return (
-    <div className="rounded-2xl border bg-white p-4 shadow-sm">
-      <div className="flex flex-col items-center text-center gap-2">
+    <div className="rounded-2xl border bg-white p-4 shadow-sm w-full overflow-hidden">
+      <div className="flex flex-col items-center text-center gap-2 w-full">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-foreground">Calendario semanal</h2>
           <p className="text-xs text-muted-foreground">Desliza para ver los pares de días</p>
@@ -175,7 +175,7 @@ export function WeeklyCalendarWidget() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1 px-2 py-1 text-sm font-semibold text-foreground whitespace-nowrap truncate text-center">
+          <div className="min-w-0 flex-1 px-2 py-1 text-sm font-semibold text-foreground truncate text-center">
             {offset === 0 ? 'Semana actual' : weekLabel}
           </div>
           {offset !== 0 && (
@@ -202,7 +202,7 @@ export function WeeklyCalendarWidget() {
           ))}
         </div>
       ) : (
-        <div className="mt-4 overflow-x-auto pb-3 snap-x snap-mandatory space-y-3 px-1">
+        <div className="mt-4 w-full overflow-x-auto pb-3 snap-x snap-mandatory space-y-3 px-1">
           {dayPairs.map((pair, pairIdx) => (
             <div key={`pair-${pairIdx}`} className="grid min-w-full grid-cols-2 gap-3 snap-center">
               {pair.map((day) => (
